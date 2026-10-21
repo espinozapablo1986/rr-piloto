@@ -8,7 +8,7 @@ import { calcularDashboard } from '../lib/dashboard.js';
 import { clave, conImagenes, circuitoPublico, usoCircuitos, vincular, vincularLote } from '../lib/circuitos.js';
 import { requireAdmin, revokeSessions, toPublicUser } from '../auth/session.js';
 import { hashPassword } from '../auth/password.js';
-import { fichaVacia, limpiarPerfil } from '../lib/ficha.js';
+import { fichaVacia, limpiarPerfil, limpiarSesion } from '../lib/ficha.js';
 
 export const adminRouter = Router();
 adminRouter.use(requireAdmin);
@@ -140,6 +140,30 @@ adminRouter.put('/usuarios/:id/password', asyncHandler(async (req, res) => {
   await prisma.usuario.update({ where: { id: u.id }, data: { hash: await hashPassword(password) } });
   await revokeSessions(u.id);
   res.json({ ok: true });
+}));
+
+const EditarSesion = z.object({ sesion: z.record(z.string(), z.unknown()) });
+
+// Corrige una sesión del piloto (por ejemplo, un tiempo mal escrito). Conserva
+// su id; el circuito se enlaza al catálogo si el nombre coincide con uno
+// aprobado. Sube la versión para que la app del piloto recargue.
+adminRouter.put('/usuarios/:id/sesiones/:sid', asyncHandler(async (req, res) => {
+  const { sesion } = parse(EditarSesion, req.body);
+  const u = await buscar(req.params.id);
+  const ses = Array.isArray(u.ficha?.datos?.sesiones) ? u.ficha.datos.sesiones : [];
+  const i = ses.findIndex((s) => s.id === req.params.sid);
+  if (i < 0) throw notFound('Sesión no encontrada.');
+  const s = limpiarSesion({ ...sesion, id: req.params.sid });
+  if (!clave(s.circuito)) throw badRequest('Falta el circuito.');
+  if (s.deporte && !DEPORTES.includes(s.deporte)) throw badRequest('Deporte no válido.');
+  const c = await prisma.circuito.findFirst({ where: { clave: clave(s.circuito), estado: 'APROBADO' } });
+  if (c) { s.circuitoId = c.id; s.circuito = c.nombre; } else delete s.circuitoId;
+  ses[i] = s;
+  await prisma.ficha.update({
+    where: { usuarioId: u.id },
+    data: { datos: { ...u.ficha.datos, sesiones: ses }, version: u.ficha.version + 1 },
+  });
+  res.json({ sesion: s });
 }));
 
 // Elimina una sesión del piloto (por ejemplo, un tiempo falso que distorsiona
