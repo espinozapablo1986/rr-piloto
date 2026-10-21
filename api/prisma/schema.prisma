@@ -1,0 +1,94 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  PILOTO
+  ADMIN
+}
+
+// Fase beta: toda cuenta nueva espera la aprobación de un administrador.
+enum Estado {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum Plan {
+  GRATIS
+  PLUS
+  PRO
+}
+
+enum TipoContenido {
+  MATERIAL
+  BENEFICIO
+}
+
+model Usuario {
+  id     String @id @default(cuid())
+  email  String @unique
+  hash   String
+  rol    Rol    @default(PILOTO)
+  estado Estado @default(PENDIENTE)
+
+  // Plan que eligió el propio piloto (simulado: no hay cobro).
+  plan Plan @default(GRATIS)
+  // Plan regalado por Rubus Racing (fidelización de alumnos). Si está vigente
+  // y es superior al elegido, manda él. Sin fecha de término no caduca.
+  cortesia      Plan?
+  cortesiaHasta DateTime? @db.Date
+
+  // Aceptación de términos: versión, fecha, mailing, datos del apoderado.
+  consentimiento Json?
+
+  creado   DateTime  @default(now())
+  aprobado DateTime?
+
+  ficha   Ficha?
+  accesos Acceso[]
+}
+
+// Todo lo que el piloto registra en la app (perfil, motos, sesiones, foto,
+// imágenes de pistas) vive en un único documento. `version` evita que dos
+// dispositivos se pisen los cambios sin saberlo.
+model Ficha {
+  usuarioId   String   @id
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  datos       Json
+  version     Int      @default(0)
+  actualizada DateTime @updatedAt
+}
+
+// Sesión de inicio de sesión. Se guarda el hash del token, nunca el token.
+model Acceso {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  expira    DateTime
+  creado    DateTime @default(now())
+
+  @@index([usuarioId])
+}
+
+// Módulo provisorio de material educativo y beneficios del plan Pro. Más
+// adelante el material pasará a una plataforma propia.
+model Contenido {
+  id          String        @id @default(cuid())
+  tipo        TipoContenido @default(MATERIAL)
+  titulo      String
+  resumen     String?
+  cuerpo      String?       @db.Text
+  enlace      String?
+  publicado   Boolean       @default(true)
+  orden       Int           @default(0)
+  creado      DateTime      @default(now())
+  actualizado DateTime      @updatedAt
+}

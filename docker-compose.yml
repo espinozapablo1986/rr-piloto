@@ -1,19 +1,113 @@
-# RR Piloto — app estática servida detrás del Nginx Proxy Manager.
+# RR Piloto — app del piloto, panel de administración, API y base de datos.
 #
-# El contenedor no publica puertos: el Proxy Manager lo alcanza por la red
-# nginx_default con el nombre `rr-piloto` y el puerto 80.
+# Solo `web` se asoma a la red del Nginx Proxy Manager (como `rr-piloto`,
+# puerto 80); la API y la base de datos quedan en una red interna sin puertos
+# publicados al host.
 #
 #   docker compose up -d --build
 
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: rr-piloto-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rrpiloto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en el archivo .env}
+      POSTGRES_DB: ${POSTGRES_DB:-rrpiloto}
+      TZ: America/Santiago
+    volumes:
+      - rr-piloto-db:/var/lib/postgresql/data
+    networks:
+      - interna
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-rrpiloto} -d ${POSTGRES_DB:-rrpiloto}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Respaldo diario de la base: las fichas tienen datos médicos y de
+  # emergencia que no se pueden perder. Guarda 14 días en ./backups.
+  backup:
+    image: postgres:16-alpine
+    container_name: rr-piloto-backup
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-rrpiloto}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-rrpiloto}
+      TZ: America/Santiago
+    volumes:
+      - ./backups:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          f=/backups/rrpiloto-$$(date +%F).sql.gz
+          pg_dump --no-owner | gzip > "$$f.tmp" && mv "$$f.tmp" "$$f" && echo "respaldo $$f"
+          find /backups -name 'rrpiloto-*.sql.gz' -mtime +14 -delete
+          sleep 86400
+        done
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - interna
+
+  # Contenedor efímero: sincroniza el esquema y termina. La API espera a que
+  # haya salido correctamente antes de arrancar.
+  migrate:
+    build:
+      context: ./api
+      target: build
+    image: rr-piloto-api:build
+    container_name: rr-piloto-migrate
+    command: ['npx', 'prisma', 'db', 'push', '--skip-generate']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rrpiloto}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-rrpiloto}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - interna
+    restart: 'no'
+
+  api:
+    build:
+      context: ./api
+      target: runtime
+    image: rr-piloto-api:latest
+    container_name: rr-piloto-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rrpiloto}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-rrpiloto}?schema=public
+      APP_URL: ${APP_URL:-https://rrpiloto.asdf123.cl}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      TZ: America/Santiago
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - interna
+
   web:
-    build: .
+    build: ./web
     image: rr-piloto:latest
     container_name: rr-piloto
     restart: unless-stopped
+    depends_on:
+      - api
     networks:
       - nginx_default
+      - interna
+
+volumes:
+  rr-piloto-db:
 
 networks:
+  interna:
   nginx_default:
     external: true

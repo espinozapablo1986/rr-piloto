@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Administración · RR Piloto</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--tx:#1b1b1b;--mu:#6b6b66;--bd:#dcdcd6;--ac:#d4232a;--ac2:#fff;--ok:#1f8a4c;--wa:#b26a00}
+@media(prefers-color-scheme:dark){:root{--bg:#121212;--card:#1d1d1d;--tx:#eee;--mu:#9a9a94;--bd:#333;--ac:#ef4a50;--ac2:#111;--ok:#4cc27f;--wa:#e0a040}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--bd)}
+.hw{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+h1{font-size:19px;margin:0}h1 span{color:var(--ac)}
+.tabs{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.btn{padding:9px 14px;border:0;border-radius:8px;background:var(--ac);color:var(--ac2);font:inherit;font-weight:600;cursor:pointer}
+.btn.s{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
+.btn.ok{background:var(--ok);color:var(--ac2)}
+.btn.on{outline:2px solid var(--ac);outline-offset:-2px}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+fieldset{border:1px solid var(--bd);background:var(--card);border-radius:10px;margin:0 0 16px;padding:14px;min-width:0}
+legend{font-weight:700;padding:0 6px;color:var(--ac)}
+label{display:block;font-size:13px;color:var(--mu);margin:0 0 12px}
+input,select,textarea{display:block;width:100%;margin-top:5px;padding:10px;border:1px solid var(--bd);border-radius:7px;background:var(--bg);color:var(--tx);font:inherit;font-size:15px}
+textarea{min-height:110px;resize:vertical}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 14px}
+.full{grid-column:1/-1}
+.mu{color:var(--mu);font-size:13px}
+.tw{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--bd);white-space:nowrap;vertical-align:middle}
+th{color:var(--mu);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+tbody tr:hover td{background:var(--bg)}
+tr.ck td{cursor:pointer}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px;border:1px solid currentColor}
+.PENDIENTE{color:var(--wa)}.APROBADO{color:var(--ok)}.RECHAZADO{color:var(--ac)}
+.dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:2px 18px;margin:0}
+.dl div{padding:6px 0;border-bottom:1px dashed var(--bd)}
+.dl dt{font-size:12px;color:var(--mu)}.dl dd{margin:0;white-space:pre-wrap;word-break:break-word}
+.em{border-color:var(--ac)}
+.auth{max-width:380px;margin:40px auto}
+.msg{font-size:14px;margin-left:4px}
+.cnt{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;background:var(--wa);color:#fff;font-size:12px;margin-left:4px}
+.av{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid var(--ac)}
+</style>
+</head>
+<body>
+<header><div class="hw"><h1>RR <span>Piloto</span> · Administración</h1><div class="tabs" id="tabs"></div></div></header>
+<main id="v"><p class="mu">Cargando…</p></main>
+<script src="campos.js"></script>
+<script>
+var $=function(s){return document.querySelector(s)},ME=null,U=[],C=[],cur="pil",filtro="PENDIENTE",q="";
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function api(m,u,b){if(b===undefined&&m!=="GET")b={};
+ return fetch(u,{method:m,credentials:"same-origin",headers:b!==undefined?{"Content-Type":"application/json"}:{},body:b!==undefined?JSON.stringify(b):undefined})
+ .then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok){var e=new Error(j.error||"Error del servidor.");e.status=r.status;throw e}return j})})}
+function read(f){var o={};new FormData(f).forEach(function(v,k){o[k]=v});return o}
+var PN={GRATIS:"Gratis",PLUS:"Plus ($1)",PRO:"Pro ($5)"},EN={PENDIENTE:"Pendiente",APROBADO:"Aprobado",RECHAZADO:"Rechazado"};
+function fd(d){return d?String(d).slice(0,10):"—"}
+
+function boot(){api("GET","/api/auth/me").then(function(r){ME=r.user;if(ME.rol!=="ADMIN"){$("#v").innerHTML='<div class="auth"><h2>Sin acceso</h2><p class="mu">Tu cuenta no es de administrador.</p><div class="row"><a class="btn s" href="/" style="text-decoration:none">Ir a la app</a><button class="btn s" onclick="salir()">Cerrar sesión</button></div></div>';return}tabs();go(cur)})
+ .catch(function(e){if(e.status===401)login();else $("#v").innerHTML='<p class="mu">'+esc(e.message)+'</p>'})}
+function login(){$("#tabs").innerHTML="";$("#v").innerHTML='<div class="auth"><h2>Ingreso de administrador</h2><form id="lf"><fieldset><label>Correo<input type="email" name="email" autocomplete="username" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label><button class="btn" type="submit">Entrar</button><span class="msg" id="lm"></span></fieldset></form></div>';
+ $("#lf").onsubmit=function(e){e.preventDefault();api("POST","/api/auth/login",read(e.target)).then(boot).catch(function(x){$("#lm").textContent=x.message})}}
+function salir(){api("POST","/api/auth/logout").then(login,login)}
+function tabs(){var p=U.filter(function(u){return u.estado==="PENDIENTE"}).length;
+ $("#tabs").innerHTML='<button class="btn s'+(cur==="pil"?" on":"")+'" onclick="go(\'pil\')">Pilotos'+(p?'<span class="cnt">'+p+'</span>':"")+'</button><button class="btn s'+(cur==="mat"?" on":"")+'" onclick="go(\'mat\')">Material Pro</button><button class="btn s" onclick="pwd()">Mi contraseña</button><button class="btn s" onclick="salir()">Salir</button>'}
+function go(t){cur=t;if(t==="pil")pilotos();else material();window.scrollTo(0,0)}
+
+/* PILOTOS */
+function pilotos(){api("GET","/api/admin/usuarios").then(function(r){U=r.usuarios;tabs();lista()}).catch(err)}
+function lista(){var n={TODOS:U.length};U.forEach(function(u){n[u.estado]=(n[u.estado]||0)+1});
+ var L=U.filter(function(u){return (filtro==="TODOS"||u.estado===filtro)&&(!q||(u.nombre+" "+u.email+" "+u.rut).toLowerCase().indexOf(q)>=0)});
+ var h='<div class="row">'+["PENDIENTE","APROBADO","RECHAZADO","TODOS"].map(function(f){return '<button class="btn s'+(f===filtro?" on":"")+'" onclick="filtro=\''+f+'\';lista()">'+(EN[f]||"Todos")+'s'.slice(f==="TODOS"?1:0)+' ('+(n[f]||0)+')</button>'}).join("")+'<input id="q" placeholder="Buscar por nombre, correo o RUT" value="'+esc(q)+'" style="max-width:300px;margin:0" oninput="q=this.value.trim().toLowerCase();lista();var i=$(\'#q\');i.focus();i.setSelectionRange(i.value.length,i.value.length)"></div>';
+ h+=L.length?'<div class="tw"><table><thead><tr><th>Piloto</th><th>Correo</th><th>RUT</th><th>Registro</th><th>Plan</th><th>Sesiones</th><th>Estado</th><th></th></tr></thead><tbody>'+L.map(function(u){
+  return '<tr class="ck" onclick="ficha(\''+u.id+'\')"><td><b>'+esc(u.nombre||"(sin nombre)")+'</b></td><td>'+esc(u.email)+'</td><td>'+esc(u.rut||"—")+'</td><td>'+fd(u.creado)+'</td><td>'+esc(PN[u.planEfectivo])+(u.cortesia&&u.cortesia===u.planEfectivo?' 🎁':"")+'</td><td>'+u.sesiones+'</td><td><span class="tag '+u.estado+'">'+EN[u.estado]+'</span></td><td onclick="event.stopPropagation()">'
+  +(u.estado!=="APROBADO"?'<button class="btn ok" onclick="estado(\''+u.id+'\',\'APROBADO\')">Aprobar</button> ':"")+(u.estado==="PENDIENTE"?'<button class="btn s" onclick="estado(\''+u.id+'\',\'RECHAZADO\')">Rechazar</button>':"")+'</td></tr>'}).join("")+'</tbody></table></div>':'<p class="mu">No hay pilotos en esta lista.</p>';
+ $("#v").innerHTML=h}
+function estado(id,e,back){api("PATCH","/api/admin/usuarios/"+id,{estado:e}).then(function(){if(back)ficha(id);else pilotos()}).catch(err)}
+function err(e){if(e.status===401)return login();alert(e.message)}
+
+function dl(sec,d){var h="";sec.forEach(function(s){var it=s[1].filter(function(f){return d[f[0]]});if(!it.length)return;
+ h+='<h4 style="margin:14px 0 4px">'+esc(s[0])+'</h4><dl class="dl">'+it.map(function(f){return '<div><dt>'+esc(f[1])+'</dt><dd>'+esc(d[f[0]])+'</dd></div>'}).join("")+'</dl>'});return h||'<p class="mu">Sin datos.</p>'}
+function best(s){var b=null;(s.entradas||[]).forEach(function(e){var m=String(e.mejor||"").trim().replace(",",".").match(/^(?:(\d+):)?(\d+(?:\.\d+)?)$/);if(m){var x=(+m[1]||0)*60+parseFloat(m[2]);if(b==null||x<b)b=x}});if(b==null)return "—";var mm=Math.floor(b/60),ss=(b%60).toFixed(3);return mm+":"+(ss<10?"0":"")+ss}
+
+function ficha(id){api("GET","/api/admin/usuarios/"+id).then(function(r){var u=r.usuario,d=r.datos||{},p=d.perfil||{},c=u.consentimiento||{},S=(d.sesiones||[]).slice().sort(function(a,b){return String(b.fecha||"").localeCompare(String(a.fecha||""))}),M=d.motos||[];
+ var em=PERFIL.filter(function(s){return /emergencia|médica/i.test(s[0])}),ot=PERFIL.filter(function(s){return em.indexOf(s)<0});
+ var h='<div class="row"><button class="btn s" onclick="go(\'pil\')">← Volver a la lista</button></div>'
+ +'<div class="row" style="gap:14px">'+(d.foto?'<img class="av" src="'+esc(d.foto)+'" alt="">':"")+'<div><h2 style="margin:0">'+esc(p.nombre||u.email)+'</h2><div class="mu">'+esc(u.email)+' · registrado el '+fd(u.creado)+(u.aprobado?' · aprobado el '+fd(u.aprobado):"")+'</div></div></div>'
+ +'<fieldset><legend>Cuenta y plan</legend><div class="row">Estado: <span class="tag '+u.estado+'">'+EN[u.estado]+'</span>'
+ +(u.estado!=="APROBADO"?'<button class="btn ok" onclick="estado(\''+u.id+'\',\'APROBADO\',1)">Aprobar</button>':"")+(u.estado!=="RECHAZADO"?'<button class="btn s" onclick="estado(\''+u.id+'\',\'RECHAZADO\',1)">Rechazar</button>':"")+(u.estado==="RECHAZADO"?'<button class="btn s" onclick="estado(\''+u.id+'\',\'PENDIENTE\',1)">Volver a pendiente</button>':"")+'</div>'
+ +'<form id="pf"><div class="g"><label>Plan elegido por el piloto (simulado)<select name="plan">'+opts(u.plan)+'</select></label><label>Plan de cortesía (fidelización)<select name="cortesia"><option value="">Sin cortesía</option>'+opts(u.cortesiaGuardada,1)+'</select></label><label>Cortesía válida hasta (vacío = sin término)<input type="date" name="cortesiaHasta" value="'+esc(u.cortesiaHastaGuardada||"")+'"></label></div>'
+ +'<div class="row"><button class="btn" type="submit">Guardar plan</button><span class="mu">Plan vigente: <b>'+esc(PN[u.planEfectivo])+'</b></span><span class="msg" id="pm"></span></div></form>'
+ +'<p class="mu" style="margin:0">Términos v'+esc(c.version||"—")+' aceptados el '+esc(c.fecha||"—")+' · Mailing: '+(c.mailing?"sí":"no")+(c.menor?' · <b>Menor de edad</b>, apoderado: '+esc(c.tutor)+' ('+esc(c.tutorRut)+')':"")+'</p></fieldset>'
+ +'<fieldset class="em"><legend>🛟 Emergencia y salud</legend>'+dl(em,p)+'</fieldset>'
+ +'<fieldset><legend>Ficha del piloto</legend>'+dl(ot,p)+'</fieldset>'
+ +'<fieldset><legend>Motos ('+M.length+')</legend>'+(M.length?M.map(function(m){return '<h4 style="margin:10px 0 0">'+esc(m.apodo||((m.marca||"")+" "+(m.modelo||"")).trim()||"Moto")+'</h4>'+dl(MOTO,m)}).join(""):'<p class="mu">Sin motos registradas.</p>')+'</fieldset>'
+ +'<fieldset><legend>Sesiones ('+S.length+')</legend>'+(S.length?'<div class="tw" style="border:0"><table><thead><tr><th>Fecha</th><th>Circuito</th><th>Tipo</th><th>Evento</th><th>Entradas</th><th>Mejor vuelta</th></tr></thead><tbody>'+S.map(function(s){return '<tr><td>'+esc(s.fecha)+'</td><td>'+esc(s.circuito)+'</td><td>'+esc(s.tipo)+'</td><td>'+esc(s.evento)+'</td><td>'+(s.entradas||[]).length+'</td><td>'+best(s)+'</td></tr>'}).join("")+'</tbody></table></div>':'<p class="mu">Sin sesiones registradas.</p>')+'</fieldset>'
+ +'<div class="row"><button class="btn s" id="delu" onclick="delU(\''+u.id+'\')">Eliminar cuenta del piloto</button></div>';
+ $("#v").innerHTML=h;window.scrollTo(0,0);
+ $("#pf").onsubmit=function(e){e.preventDefault();var o=read(e.target);api("PATCH","/api/admin/usuarios/"+u.id,{plan:o.plan,cortesia:o.cortesia||null,cortesiaHasta:o.cortesia&&o.cortesiaHasta?o.cortesiaHasta:null}).then(function(){ficha(u.id)}).catch(function(x){$("#pm").textContent=x.message})}}).catch(err)}
+function opts(sel,sinGratis){return ["GRATIS","PLUS","PRO"].filter(function(p){return !sinGratis||p!=="GRATIS"}).map(function(p){return '<option value="'+p+'"'+(p===sel?" selected":"")+'>'+PN[p]+'</option>'}).join("")}
+var pend=null;
+function delU(id){var b=$("#delu");if(pend!==id){pend=id;b.textContent="¿Seguro? Se borra la cuenta y toda su ficha. Toca de nuevo";return}pend=null;api("DELETE","/api/admin/usuarios/"+id).then(function(){go("pil")}).catch(err)}
+
+/* MATERIAL PRO */
+function material(){api("GET","/api/admin/contenido").then(function(r){C=r.items;tabs();
+ var h='<p class="mu">Módulo provisorio: lo que publiques aquí lo ven los pilotos con plan Pro en la pestaña Material. Más adelante el material educativo pasará a una plataforma propia.</p><div class="row"><button class="btn" onclick="cform()">+ Nuevo contenido</button></div>';
+ h+=C.length?'<div class="tw"><table><thead><tr><th>Título</th><th>Tipo</th><th>Orden</th><th>Estado</th><th>Actualizado</th></tr></thead><tbody>'+C.map(function(c){return '<tr class="ck" onclick="cform(\''+c.id+'\')"><td><b>'+esc(c.titulo)+'</b><div class="mu">'+esc(c.resumen||"")+'</div></td><td>'+(c.tipo==="MATERIAL"?"🎓 Material":"🏷️ Descuento")+'</td><td>'+c.orden+'</td><td>'+(c.publicado?'<span class="tag APROBADO">Publicado</span>':'<span class="tag PENDIENTE">Borrador</span>')+'</td><td>'+fd(c.actualizado)+'</td></tr>'}).join("")+'</tbody></table></div>':'<p class="mu">Aún no hay contenido.</p>';
+ $("#v").innerHTML=h}).catch(err)}
+function cform(id){var c=C.filter(function(x){return x.id===id})[0]||{tipo:"MATERIAL",publicado:true,orden:0};
+ $("#v").innerHTML='<div class="row"><button class="btn s" onclick="go(\'mat\')">← Volver</button></div><form id="cf"><fieldset><legend>'+(id?"Editar":"Nuevo")+' contenido</legend><div class="g"><label>Tipo<select name="tipo"><option value="MATERIAL"'+(c.tipo==="MATERIAL"?" selected":"")+'>🎓 Material educativo</option><option value="BENEFICIO"'+(c.tipo==="BENEFICIO"?" selected":"")+'>🏷️ Descuento en marca</option></select></label><label>Orden (menor aparece primero)<input type="number" name="orden" value="'+esc(c.orden)+'"></label><label class="full">Título<input name="titulo" required value="'+esc(c.titulo)+'"></label><label class="full">Resumen (una línea)<input name="resumen" value="'+esc(c.resumen)+'"></label><label class="full">Contenido / instrucciones (por ejemplo, el código de descuento)<textarea name="cuerpo">'+esc(c.cuerpo)+'</textarea></label><label class="full">Enlace (video, PDF, tienda…)<input name="enlace" placeholder="https://" value="'+esc(c.enlace)+'"></label><label><input type="checkbox" name="publicado" style="display:inline;width:auto"'+(c.publicado?" checked":"")+'> Publicado</label></div>'
+ +'<div class="row"><button class="btn" type="submit">Guardar</button>'+(id?'<button class="btn s" type="button" id="delc" onclick="delC(\''+id+'\')">Eliminar</button>':"")+'<span class="msg" id="cm"></span></div></fieldset></form>';
+ $("#cf").onsubmit=function(e){e.preventDefault();var o=read(e.target),b={tipo:o.tipo,titulo:o.titulo,resumen:o.resumen,cuerpo:o.cuerpo,enlace:o.enlace.trim(),publicado:!!o.publicado,orden:parseInt(o.orden,10)||0};
+  api(id?"PUT":"POST","/api/admin/contenido"+(id?"/"+id:""),b).then(function(){go("mat")}).catch(function(x){$("#cm").textContent=x.message+(x.details?" "+x.details.join(" "):"")})}}
+function delC(id){var b=$("#delc");if(pend!==id){pend=id;b.textContent="¿Seguro? Toca de nuevo";return}pend=null;api("DELETE","/api/admin/contenido/"+id).then(function(){go("mat")}).catch(err)}
+
+function pwd(){$("#v").innerHTML='<div class="auth" style="margin-top:10px"><form id="wf"><fieldset><legend>Cambiar mi contraseña</legend><label>Contraseña actual<input type="password" name="actual" autocomplete="current-password" required></label><label>Nueva contraseña (mínimo 8)<input type="password" name="nueva" minlength="8" autocomplete="new-password" required></label><button class="btn" type="submit">Guardar</button><span class="msg" id="wm"></span></fieldset></form></div>';
+ $("#wf").onsubmit=function(e){e.preventDefault();api("PUT","/api/auth/password",read(e.target)).then(function(){$("#wm").textContent="Contraseña actualizada ✓";e.target.reset()}).catch(function(x){$("#wm").textContent=x.message})}}
+
+boot();
+</script>
+</body>
+</html>

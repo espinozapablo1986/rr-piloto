@@ -1,0 +1,17 @@
+// Campos de la ficha del piloto y de la moto. Los usan la app y el panel de
+// administración, para que ambos muestren las mismas etiquetas.
+var PERFIL=[
+["Datos personales",[["nombre","Nombre completo"],["rut","RUT"],["nac","Fecha de nacimiento","date"],["direccion","Dirección"],["comuna","Comuna / ciudad"],["telefono","Teléfono","tel"],["correo","Correo electrónico","email"]]],
+["Previsión y seguro",[["prevision","Previsión",["","Fonasa","Isapre","Otra"]],["isapre","Isapre / detalle"],["seguro","Seguro de accidentes (compañía y n.° póliza)"],["clinica","Centro de salud preferido"]]],
+["En caso de emergencia llamar a",[["emNombre","Nombre"],["emParentesco","Parentesco"],["emTel","Teléfono","tel"],["emTel2","Teléfono alternativo","tel"]]],
+["Información médica",[["sangre","Grupo sanguíneo",["","O+","O-","A+","A-","B+","B-","AB+","AB-"]],["alergias","Alergias","textarea"],["enfermedades","Enfermedades o condiciones","textarea"],["medicamentos","Medicamentos de uso habitual","textarea"],["antecedentes","Antecedentes médicos importantes (lesiones, cirugías, etc.)","textarea"]]],
+["Competencia",[["licencia","N.° de licencia"],["categoria","Categoría"],["nCarrera","N.° de carrera"],["equipo","Equipo / club"],["experiencia","Años de experiencia"]]]
+];
+var MOTO=[
+["Identificación",[["apodo","Nombre de la moto (ej. R3 pista)"],["marca","Marca"],["modelo","Modelo"],["anio","Año","number"],["cc","Cilindrada (cc)","number"],["color","Color"],["patente","Patente / n.° de chasis"]]],
+["Motor y transmisión",[["pinon","Piñón (dientes)","number"],["corona","Corona / catalina (dientes)","number"],["aceite","Aceite / lubricante"],["escape","Escape / admisión"],["ecu","Mapa de ECU / modificaciones de motor","textarea"]]],
+["Chasis y suspensión",[["horquilla","Horquilla (aceite, resortes, altura)"],["amortiguador","Amortiguador trasero"],["precarga","Precarga / compresión / rebote","textarea"],["geometria","Geometría (altura, ángulos, etc.)"]]],
+["Neumáticos y frenos",[["neumatico","Marca y compuesto de neumáticos"],["presionD","Presión delantera fría (psi)","number"],["presionT","Presión trasera fría (psi)","number"],["frenos","Pastillas y discos"]]],
+["Notas",[["notas","Otras características mecánicas","textarea"]]]
+];
+var TIPOS=["Práctica","Entrenamiento","Clase","Clasificación","Carrera","Campeonato","Exhibición"];

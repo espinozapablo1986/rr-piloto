@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RR Piloto · Rubus Racing</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#d4232a">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RR Piloto">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{--bg:#f6f6f4;--card:#fff;--tx:#1b1b1b;--mu:#6b6b66;--bd:#dcdcd6;--ac:#d4232a;--ac2:#fff;--ok:#1f8a4c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121212;--card:#1d1d1d;--tx:#eee;--mu:#9a9a94;--bd:#333;--ac:#ef4a50;--ac2:#111;--ok:#4cc27f}}
@@ -70,44 +78,90 @@ footer{max-width:780px;margin:0 auto;padding:0 16px 96px;text-align:center;color
 .bd{display:inline-block;padding:6px 10px;border:1px solid var(--bd);border-radius:20px;margin:0 6px 8px 0;font-size:13px;opacity:.45}
 .bd.on{opacity:1;border-color:var(--ok);color:var(--ok);font-weight:600}
 svg{width:100%;height:auto;display:block}
+fieldset.lk{background:repeating-linear-gradient(-45deg,var(--card),var(--card) 12px,var(--bg) 12px,var(--bg) 24px)}
+fieldset.lk>*:not(legend){opacity:.45;pointer-events:none}
+.lkn{font-size:12px;font-weight:600;color:var(--mu)}
+.lnk{border:0;background:none;color:var(--ac);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:0}
+.pl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:8px}
+.pc{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;background:var(--card);border:2px solid var(--bd);border-radius:12px;padding:14px;cursor:pointer;text-align:left;font:inherit;color:var(--tx)}
+.pc.on{border-color:var(--ac);box-shadow:0 0 0 2px var(--ac) inset}
+.pc h3{margin:0;font-size:17px}.pc .pr{font-size:22px;font-weight:800;margin:2px 0 4px;color:var(--ac)}
+.pc ul{padding-left:18px;margin:6px 0 0;font-size:13px}
+.auth{max-width:440px;margin:0 auto}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:20px;background:var(--ac);color:var(--ac2);margin-left:6px;cursor:pointer;border:0;font-family:inherit}
+#toast{display:none;position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:60;max-width:calc(100% - 32px);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+.mt{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px}
+.mt h3{margin:0 0 4px;font-size:16px}.mt p{margin:6px 0;white-space:pre-wrap}
 </style>
 </head>
 <body>
 <header>
   <div style="display:flex;align-items:center;gap:10px"><img id="lg" alt="RR Piloto" style="height:46px;width:46px;border-radius:8px"><h1>RR <span>Piloto</span></h1></div>
-  <div class="sub">Rubus Racing · tus datos se guardan en este dispositivo</div>
+  <div class="sub" id="sub">Rubus Racing · Beta</div>
   <nav id="nav"></nav>
 </header>
 <main id="v"></main>
+<div id="toast" role="status"></div>
 <footer>Desarrollado por Rubus Racing. Todos los derechos reservados.</footer>
+<script src="campos.js"></script>
 <script>
 var KEY="rrficha1";
 function mig(d){d=d||{};var r={perfil:d.perfil||{},motos:d.motos||[],sesiones:d.sesiones||[]};
  if(!d.motos&&d.moto&&Object.keys(d.moto).length){d.moto.id="m"+Date.now();r.motos=[d.moto]}
  if(!d.sesiones&&d.tandas)r.sesiones=d.tandas.map(function(t){return{id:t.id,fecha:t.fecha,circuito:t.circuito,tipo:t.tipo,clima:t.clima,posicion:t.pos,ajustes:t.config,mejorar:t.mejorar,sensaciones:t.notas,entradas:[{minutos:t.minutos,vueltas:t.vueltas,mejor:t.mejor}]}});
  r.sesiones.forEach(function(s){(s.entradas||[]).forEach(function(e){["clima","posicion","trazado","sentido","obsPista","motoId","pinon","corona","neum","combustible","ajustes","sensaciones","nivel","mejorado","mejorar"].forEach(function(k){if(e[k]==null&&s[k]!=null)e[k]=s[k]})})});r.pistas=d.pistas||{};r.consent=d.consent||null;r.foto=d.foto||"";return r}
-function load(){try{return mig(JSON.parse(localStorage.getItem(KEY)||"{}"))}catch(e){return mig({})}}
-var db=load();
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
+var db=mig({}),ME=null,VER=0,LOCAL=null,MAT=null;
 var $=function(s){return document.querySelector(s)};
+
+/* SERVIDOR: la ficha vive en la base de datos de Rubus Racing */
+function api(m,u,b){if(b===undefined&&m!=="GET")b={};
+ return fetch(u,{method:m,credentials:"same-origin",headers:b!==undefined?{"Content-Type":"application/json"}:{},body:b!==undefined?JSON.stringify(b):undefined})
+ .then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok){var e=new Error(j.error||"No se pudo conectar con el servidor.");e.status=r.status;throw e}return j})},function(){var e=new Error("Sin conexión. Revisa tu internet.");e.status=0;throw e})}
+function toast(m){var t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){t.style.display="none"},4000)}
+function doc(){return{perfil:db.perfil,motos:db.motos,sesiones:db.sesiones,pistas:db.pistas,foto:db.foto}}
+// Los cambios se agrupan y se envían en una sola petición; si llega otro
+// mientras se guarda, se manda después con la versión nueva.
+function save(){clearTimeout(save.t);save.t=setTimeout(push,400)}
+function push(){save.t=null;if(push.busy){push.again=1;return}push.busy=1;
+ api("PUT","/api/ficha",{datos:doc(),version:VER}).then(function(r){VER=r.version})
+ .catch(function(e){toast(e.message);if(e.status===409||e.status===403)return reload()})
+ .then(function(){push.busy=0;if(push.again){push.again=0;push()}})}
+function reload(){return api("GET","/api/ficha").then(function(r){db=mig(r.datos);VER=r.version;if(ME&&ME.estado==="APROBADO")render()})}
+window.addEventListener("pagehide",function(){if(!save.t)return;clearTimeout(save.t);try{fetch("/api/ficha",{method:"PUT",keepalive:true,credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({datos:doc(),version:VER})})}catch(e){}});
+// Datos que el prototipo dejó en este navegador, para ofrecer subirlos.
+function localData(){try{var d=JSON.parse(localStorage.getItem(KEY)||"null");if(!d)return null;d=mig(d);return d.sesiones.length||d.motos.length||Object.keys(d.perfil).length?d:null}catch(e){return null}}
+
+/* PLANES (simulados durante la beta) */
+var PLANES=[["GRATIS","Gratis","$0",["Perfil y ficha de emergencia","Registro de tiempos en una pista"]],
+ ["PLUS","Plus","$1 al mes",["Todo lo del plan Gratis","Pistas ilimitadas","Motos: piñón, catalina, neumáticos y ajustes","Trazado, sensaciones y rendimiento","Estadísticas e imágenes para compartir"]],
+ ["PRO","Pro","$5 al mes",["Todo lo del plan Plus","Descuentos en marcas","Material educativo y de capacitación"]]];
+var NV={GRATIS:0,PLUS:1,PRO:2};
+function niv(){return ME?NV[ME.planEfectivo]||0:0}
+function pName(id){var p=PLANES.filter(function(x){return x[0]===id})[0];return p?p[1]:id}
+function planCards(sel,fn){return '<div class="pl">'+PLANES.map(function(p){return '<button type="button" class="pc'+(p[0]===sel?" on":"")+'" onclick="'+fn+'(\''+p[0]+'\')"><h3>'+p[1]+'</h3><div class="pr">'+p[2]+'</div><ul>'+p[3].map(function(x){return '<li>'+x+'</li>'}).join("")+'</ul></button>'}).join("")+'</div><p class="mu">Beta: los planes de pago son simulados. No se cobra nada.</p>'}
+// Bloque que exige un plan: si no alcanza, se muestra gris y sin edición.
+function L(n,title,inner){var ok=niv()>=n;return '<fieldset'+(ok?'':' disabled class="lk"')+'><legend>'+title+(ok?'':' <span class="lkn">🔒 Plan '+(n===2?"Pro":"Plus")+' · <button type="button" class="lnk" onclick="go(\'plan\')">Ver planes</button></span>')+'</legend>'+inner+'</fieldset>'}
+function lockCard(n,t,d){return '<div class="t"><h3>🔒 '+t+'</h3><p class="mu" style="margin:4px 0 10px">'+d+' Disponible desde el plan '+(n===2?"Pro ($5 al mes)":"Plus ($1 al mes)")+'.</p><button class="btn" onclick="go(\'plan\')">Ver planes</button></div>'}
+/* APP INSTALABLE Y NOTIFICACIONES */
+var INST=null;
+function standalone(){return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}
+function iOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
+if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})});
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();INST=e;if(ME&&(cur==="inicio"||cur==="datos"))render()});
+window.addEventListener("appinstalled",function(){INST=null;toast("RR Piloto quedó instalada ✓");if(ME)render()});
+function instalar(){if(INST){INST.prompt();INST.userChoice.then(function(){INST=null;render()});return}
+ toast(iOS()?"En Safari toca Compartir (□↑) y luego «Agregar a inicio».":"Abre el menú del navegador y elige «Instalar aplicación».")}
+function instBox(){if(standalone()||(!INST&&!iOS()))return "";
+ return '<div class="t"><b>📲 Instala RR Piloto en tu teléfono</b><div class="mu">Ábrela como una app, sin buscarla en el navegador.'+(iOS()&&!INST?' En Safari: Compartir (□↑) → «Agregar a inicio».':"")+'</div><div class="row" style="margin:8px 0 0"><button class="btn" onclick="instalar()">Instalar app</button></div></div>'}
+function notifEstado(){if(!("Notification" in window)||!("serviceWorker" in navigator))return iOS()&&!standalone()?"ios":"no";return Notification.permission}
+function notifBox(){var s=notifEstado(),t={granted:"✅ Activadas en este dispositivo.",denied:"Bloqueadas. Actívalas desde los ajustes del navegador para este sitio.",ios:"En iPhone, primero instala la app en tu pantalla de inicio y ábrela desde ahí.",no:"Este navegador no permite notificaciones.","default":"Te avisaremos de novedades, eventos y recordatorios de Rubus Racing."}[s];
+ return '<fieldset><legend>Notificaciones</legend><p class="mu" style="margin:0 0 10px">'+t+'</p>'+(s==="default"?'<button class="btn" onclick="notifOn()">🔔 Activar notificaciones</button>':s==="granted"?'<button class="btn s" onclick="notifTest()">Enviar notificación de prueba</button>':"")+'</fieldset>'}
+function notifOn(){Notification.requestPermission().then(function(p){if(p==="granted")notifTest();render()})}
+function notifTest(){navigator.serviceWorker.ready.then(function(r){return r.showNotification("RR Piloto",{body:"Las notificaciones están activadas ✓",icon:"/icons/icon-192.png",badge:"/icons/icon-192.png"})}).catch(function(){toast("No se pudo mostrar la notificación.")})}
+function hdr(){if(!ME)return;$("#sub").innerHTML='Rubus Racing · Beta <button class="pill" onclick="go(\'plan\')">Plan '+esc(pName(ME.planEfectivo))+'</button>'}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function uid(){return String(Date.now())+Math.floor(Math.random()*999)}
 
-var PERFIL=[
-["Datos personales",[["nombre","Nombre completo"],["rut","RUT"],["nac","Fecha de nacimiento","date"],["direccion","Dirección"],["comuna","Comuna / ciudad"],["telefono","Teléfono","tel"],["correo","Correo electrónico","email"]]],
-["Previsión y seguro",[["prevision","Previsión",["","Fonasa","Isapre","Otra"]],["isapre","Isapre / detalle"],["seguro","Seguro de accidentes (compañía y n.° póliza)"],["clinica","Centro de salud preferido"]]],
-["En caso de emergencia llamar a",[["emNombre","Nombre"],["emParentesco","Parentesco"],["emTel","Teléfono","tel"],["emTel2","Teléfono alternativo","tel"]]],
-["Información médica",[["sangre","Grupo sanguíneo",["","O+","O-","A+","A-","B+","B-","AB+","AB-"]],["alergias","Alergias","textarea"],["enfermedades","Enfermedades o condiciones","textarea"],["medicamentos","Medicamentos de uso habitual","textarea"],["antecedentes","Antecedentes médicos importantes (lesiones, cirugías, etc.)","textarea"]]],
-["Competencia",[["licencia","N.° de licencia"],["categoria","Categoría"],["nCarrera","N.° de carrera"],["equipo","Equipo / club"],["experiencia","Años de experiencia"]]]
-];
-var MOTO=[
-["Identificación",[["apodo","Nombre de la moto (ej. R3 pista)"],["marca","Marca"],["modelo","Modelo"],["anio","Año","number"],["cc","Cilindrada (cc)","number"],["color","Color"],["patente","Patente / n.° de chasis"]]],
-["Motor y transmisión",[["pinon","Piñón (dientes)","number"],["corona","Corona / catalina (dientes)","number"],["aceite","Aceite / lubricante"],["escape","Escape / admisión"],["ecu","Mapa de ECU / modificaciones de motor","textarea"]]],
-["Chasis y suspensión",[["horquilla","Horquilla (aceite, resortes, altura)"],["amortiguador","Amortiguador trasero"],["precarga","Precarga / compresión / rebote","textarea"],["geometria","Geometría (altura, ángulos, etc.)"]]],
-["Neumáticos y frenos",[["neumatico","Marca y compuesto de neumáticos"],["presionD","Presión delantera fría (psi)","number"],["presionT","Presión trasera fría (psi)","number"],["frenos","Pastillas y discos"]]],
-["Notas",[["notas","Otras características mecánicas","textarea"]]]
-];
-var TIPOS=["Práctica","Entrenamiento","Clase","Clasificación","Carrera","Campeonato","Exhibición"];
 
 function field(f,v){var k=f[0],l=f[1],t=f[2]||"text",c=f[3]==="full"?" full":"",val=v&&v[k]!=null?v[k]:"",n=' name="'+k+'"';
  if(Array.isArray(t)){var o=t.slice();if(val&&o.indexOf(val)<0)o.push(val);return '<label class="'+c+'">'+l+'<select'+n+'>'+o.map(function(x){return '<option'+(x===val?" selected":"")+'>'+esc(x)+'</option>'}).join("")+'</select></label>'}
@@ -128,10 +182,10 @@ function groups(){var g={},o=[];db.sesiones.forEach(function(s){var k=nk(s.circu
  o.forEach(function(x){x.s.sort(function(a,b){return (a.fecha||"").localeCompare(b.fecha||"")});x.m=0;x.e=0;x.b=null;x.bf="";x.s.forEach(function(s){var t=sTot(s);x.m+=t.m;x.e+=(s.entradas||[]).length;if(t.b&&(x.b==null||t.b<x.b)){x.b=t.b;x.bf=s.fecha}})});
  o.sort(function(a,b){return b.m-a.m});return o}
 
-var tabs=[["inicio","🏠","Inicio"],["perfil","👤","Piloto"],["moto","🏍️","Moto"],["ses","🏁","Sesiones"],["datos","📊","Datos"]],cur="inicio",flash="",editing=null,curMoto=null,dc=null,pend=null;
+var tabs=[["inicio","🏠","Inicio"],["perfil","👤","Piloto"],["moto","🏍️","Moto"],["ses","🏁","Sesiones"],["datos","📊","Datos"],["mat","🎓","Material"]],cur="inicio",flash="",editing=null,curMoto=null,dc=null,pend=null;
 function nav(){$("#nav").innerHTML=tabs.map(function(t){return '<button class="'+(t[0]===cur?"on":"")+'" onclick="go(\''+t[0]+'\')"><b>'+t[1]+'</b>'+t[2]+'</button>'}).join("")}
 function go(t){cur=t;editing=null;pend=null;nav();render();window.scrollTo(0,0)}
-function render(){if(cur==="inicio")inicio();else if(cur==="perfil")perfil();else if(cur==="moto")moto();else if(cur==="ses")ses();else datos()}
+function render(){hdr();if(cur==="inicio")inicio();else if(cur==="perfil")perfil();else if(cur==="moto")moto();else if(cur==="ses")ses();else if(cur==="mat")mat();else if(cur==="plan")planView();else datos()}
 
 var TC=[
 "<p><b>1. Responsable.</b> Rubus Racing (rubusracing.cl) es la responsable de esta aplicación y del tratamiento de tus datos.</p>",
@@ -139,17 +193,32 @@ var TC=[
 "<p><b>3. Para qué los usamos.</b></p><ul><li><b>Respaldo de emergencia:</b> si ocurre un accidente o emergencia durante una práctica, clase o evento de Rubus Racing, nuestro equipo podrá consultar tu ficha para avisar a tu contacto de emergencia y entregar la información relevante a los servicios de salud que te atiendan.</li><li><b>Seguimiento deportivo:</b> llevar el registro de tus sesiones, tiempos y progreso.</li><li><b>Comunicaciones:</b> solo si lo aceptas, enviarte información, novedades y eventos de Rubus Racing a tu correo.</li></ul>",
 "<p><b>4. Datos de salud.</b> Son datos sensibles y se usan únicamente para el respaldo de emergencia. Es tu responsabilidad entregar información veraz y mantenerla actualizada. La ficha no constituye un diagnóstico ni reemplaza la atención médica.</p>",
 "<p><b>5. Quién accede.</b> Solo el personal autorizado de Rubus Racing. No vendemos tus datos ni los cedemos a terceros, salvo a servicios de salud o autoridades ante una emergencia o un requerimiento legal.</p>",
-"<p><b>6. Dónde se guardan.</b> En tu dispositivo y, cuando Rubus Racing habilite el registro central, en servidores de Rubus Racing con acceso restringido.</p>",
+"<p><b>6. Dónde se guardan.</b> En servidores de Rubus Racing con acceso restringido. Tu cuenta queda protegida por tu correo y contraseña.</p>",
 "<p><b>7. Mailing.</b> Es opcional, se envía al correo de tu perfil y puedes darte de baja cuando quieras. No condiciona el uso de la app.</p>",
 "<p><b>8. Tus derechos.</b> Puedes acceder, rectificar, eliminar tus datos, oponerte a su uso o retirar tu consentimiento en cualquier momento, desde la app o por los canales oficiales de Rubus Racing.</p>",
 "<p><b>9. Menores de edad.</b> Si eres menor de 18 años, necesitas la autorización de tu madre, padre o tutor.</p>",
 "<p><b>10. Otros documentos.</b> Aceptar estos términos no reemplaza otros documentos de inscripción que Rubus Racing pueda exigir para participar en sus actividades.</p>",
-"<p class=\"mu\">Versión 1.0 · octubre de 2026</p>"].join("");
+"<p><b>11. Fase beta.</b> RR Piloto está en fase beta: cada cuenta nueva debe ser aprobada por Rubus Racing antes de usarse. Los planes de pago son simulados y no generan cobros. Rubus Racing puede asignar un plan sin costo, por ejemplo a los alumnos de sus clases.</p>",
+"<p class=\"mu\">Versión 1.1 · octubre de 2026</p>"].join("");
+var TCV="1.1",REG=null,PSEL="GRATIS";
 function hd(on){$("header").style.display=on?"":"none"}
-function boot(){var c=db.consent;if(c&&c.acepta){hd(1);nav();render();window.scrollTo(0,0)}else{hd(0);gate("portada")}}
+function boot(){hd(0);$("#v").innerHTML='<p class="mu" style="text-align:center;padding:40px 0">Cargando…</p>';
+ api("GET","/api/auth/me").then(function(r){ME=r.user;
+  if(ME.rol==="ADMIN"){location.href="/admin";return}
+  if(ME.estado!=="APROBADO"){gate("espera");return}
+  return api("GET","/api/ficha").then(function(f){db=mig(f.datos);VER=f.version;LOCAL=localData();hd(1);nav();render();window.scrollTo(0,0)})})
+ .catch(function(e){if(e.status===401){ME=null;gate("portada")}else gate("error",e.message)})}
+function logout(){api("POST","/api/auth/logout").catch(function(){}).then(function(){ME=null;db=mig({});VER=0;MAT=null;cur="inicio";gate("portada")})}
 function gate(s,ro){window.scrollTo(0,0);hd(0);var v=$("#v");
- if(s==="portada"){v.innerHTML='<div style="text-align:center;padding:36px 8px 20px"><img src="'+LOGO+'" alt="RR Piloto" style="width:170px;height:170px;border-radius:18px"><h1 style="font-size:32px;margin:20px 0 6px">RR <span>Piloto</span></h1><div style="font-size:21px;font-weight:800;letter-spacing:.5px">Rubus Racing</div><p class="mu" style="font-size:16px;margin:4px 0 28px">Preparando los pilotos del futuro</p><button class="btn" style="font-size:17px;padding:14px 32px" onclick="gate(\'terms\')">Comenzar</button></div>';return}
- var f=ro?'<div class="row"><button class="btn" onclick="boot()">Volver</button></div>':
+ if(s==="portada"){v.innerHTML='<div style="text-align:center;padding:36px 8px 20px"><img src="'+LOGO+'" alt="RR Piloto" style="width:170px;height:170px;border-radius:18px"><h1 style="font-size:32px;margin:20px 0 6px">RR <span>Piloto</span></h1><div style="font-size:21px;font-weight:800;letter-spacing:.5px">Rubus Racing</div><p class="mu" style="font-size:16px;margin:4px 0 28px">Preparando los pilotos del futuro</p><div class="row" style="justify-content:center"><button class="btn" style="font-size:17px;padding:14px 32px" onclick="gate(\'terms\')">Crear mi cuenta</button><button class="btn s" style="font-size:17px;padding:14px 24px" onclick="gate(\'login\')">Ya tengo cuenta</button></div><p class="mu" style="margin-top:22px">Fase beta · las cuentas nuevas se aprueban manualmente</p></div>';return}
+ if(s==="login"){v.innerHTML='<div class="auth"><h2 style="margin:8px 0 12px">Iniciar sesión</h2><form id="lf"><fieldset><legend>Tu cuenta</legend><label>Correo electrónico<input type="email" name="email" autocomplete="username" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label></fieldset><div class="row"><button class="btn" type="submit">Entrar</button><button class="btn s" type="button" onclick="gate(\'portada\')">Volver</button></div><div class="ok" id="lm" style="color:var(--ac)"></div></form><p class="mu">¿No tienes cuenta? <button class="lnk" onclick="gate(\'terms\')">Créala aquí</button></p></div>';
+  $("#lf").onsubmit=function(e){e.preventDefault();var o=read(e.target);$("#lm").textContent="Entrando…";api("POST","/api/auth/login",o).then(function(){cur="inicio";boot()}).catch(function(x){$("#lm").textContent=x.message})};return}
+ if(s==="registro"){v.innerHTML='<div class="auth" style="max-width:780px"><h2 style="margin:8px 0 12px">Crea tu cuenta</h2><form id="rf"><fieldset><legend>Tus datos</legend><div class="g"><label class="full">Nombre completo<input name="nombre" autocomplete="name" required></label><label>Correo electrónico<input type="email" name="email" autocomplete="email" required></label><label>Contraseña (mínimo 8 caracteres)<input type="password" name="password" autocomplete="new-password" minlength="8" required></label><label>Repite la contraseña<input type="password" name="password2" autocomplete="new-password" required></label></div></fieldset><fieldset><legend>Elige tu plan</legend><div id="rp">'+planCards(PSEL,"pickPlan")+'</div></fieldset><div class="row"><button class="btn" type="submit">Crear cuenta</button><button class="btn s" type="button" onclick="gate(\'portada\')">Cancelar</button></div><div class="ok" id="rm" style="color:var(--ac)"></div></form></div>';
+  $("#rf").onsubmit=function(e){e.preventDefault();var o=read(e.target);if(o.password!==o.password2){$("#rm").textContent="Las contraseñas no coinciden.";return}
+   $("#rm").textContent="Creando tu cuenta…";api("POST","/api/auth/registro",{nombre:o.nombre,email:o.email,password:o.password,plan:PSEL,consentimiento:REG}).then(function(r){ME=r.user;REG=null;cur="perfil";gate("espera")}).catch(function(x){$("#rm").textContent=x.message})};return}
+ if(s==="espera"){v.innerHTML='<div class="auth" style="text-align:center;padding-top:30px"><img src="'+LOGO+'" alt="" style="width:110px;height:110px;border-radius:14px"><h2>Tu cuenta está en revisión</h2><p>Gracias por registrarte'+(ME?', <b>'+esc(ME.email)+'</b>':"")+'. RR Piloto está en fase beta y Rubus Racing aprueba cada cuenta antes de habilitarla.</p><p class="mu">Plan elegido: '+esc(pName(ME&&ME.plan))+'. Vuelve a entrar más tarde.</p><div class="row" style="justify-content:center"><button class="btn" onclick="boot()">Volver a comprobar</button><button class="btn s" onclick="logout()">Cerrar sesión</button></div></div>';return}
+ if(s==="error"){v.innerHTML='<div class="auth" style="text-align:center;padding-top:30px"><h2>No pudimos cargar RR Piloto</h2><p class="mu">'+esc(ro)+'</p><button class="btn" onclick="boot()">Reintentar</button></div>';return}
+ var f=ro?'<div class="row"><button class="btn" onclick="hd(1);go(\'datos\')">Volver</button></div>':
  '<fieldset><legend>Aceptación</legend>'
  +'<label class="ck"><input type="checkbox" id="ckm" onchange="$(\'#tt\').style.display=this.checked?\'block\':\'none\'"><span>Soy menor de 18 años y mi madre, padre o tutor me autoriza.</span></label>'
  +'<div id="tt" style="display:none"><label>Nombre del apoderado<input id="tn"></label><label>RUT del apoderado<input id="tr"></label></div>'
@@ -161,8 +230,9 @@ function gate(s,ro){window.scrollTo(0,0);hd(0);var v=$("#v");
 function acepto(){var m=$("#ckm").checked,tn=$("#tn").value.trim(),tr=$("#tr").value.trim();
  if(!$("#ck1").checked||!$("#ck2").checked){$("#tm").textContent="Debes aceptar las dos casillas obligatorias.";return}
  if(m&&(!tn||!tr)){$("#tm").textContent="Indica nombre y RUT del apoderado.";return}
- db.consent={acepta:true,salud:true,mailing:$("#ck3").checked,menor:m,tutor:tn,tutorRut:tr,fecha:new Date().toISOString().slice(0,10),version:"1.0"};save();cur="perfil";boot()}
-function wipe(){var b=$("#wipe");if(pend==="w"){try{localStorage.removeItem(KEY)}catch(e){}db=mig({});pend=null;cur="perfil";boot()}else{pend="w";b.textContent="¿Seguro? Se borra todo. Toca de nuevo"}}
+ REG={terminos:true,salud:true,mailing:$("#ck3").checked,menor:m,tutor:tn,tutorRut:tr,version:TCV};gate("registro")}
+function pickPlan(p){PSEL=p;$("#rp").innerHTML=planCards(PSEL,"pickPlan")}
+function wipe(){var b=$("#wipe");if(pend==="w"){pend=null;b.textContent="Borrando…";api("DELETE","/api/cuenta").then(function(){try{localStorage.removeItem(KEY)}catch(e){}ME=null;db=mig({});VER=0;cur="inicio";gate("portada");toast("Tu cuenta y tus datos fueron eliminados.")}).catch(function(e){b.textContent="Borrar mi cuenta y mis datos";toast(e.message)})}else{pend="w";b.textContent="¿Seguro? Se borra tu cuenta y todo. Toca de nuevo"}}
 
 function fixRut(s){var c=String(s).replace(/[^0-9kK]/g,"").toUpperCase();if(c.length<2)return{v:s,ok:!s};var b=c.slice(0,-1),d=c.slice(-1),sum=0,m=2;for(var i=b.length-1;i>=0;i--){sum+=(+b[i])*m;m=m===7?2:m+1}var r=11-sum%11,dv=r===11?"0":r===10?"K":String(r);return{v:b.replace(/\B(?=(\d{3})+(?!\d))/g,".")+"-"+d,ok:dv===d}}
 function av(sz){return '<img class="av" style="width:'+sz+'px;height:'+sz+'px" src="'+(db.foto||LOGO)+'" alt="">'}
@@ -173,23 +243,32 @@ function inicio(){var G=groups(),S=db.sesiones,tm=0,tv=0,imp=false,p=pct(),nom=(
  S.forEach(function(s){var t=sTot(s);tm+=t.m;tv+=t.v});
  G.forEach(function(g){var rm=null;g.s.forEach(function(s){var b=sTot(s).b;if(b){if(rm!=null&&b<rm)imp=true;if(rm==null||b<rm)rm=b}})});
  var h='<div class="hero">'+av(72)+'<div><h2 style="margin:0;font-size:22px">¡Hola, '+esc(nom)+'! 👋</h2><div class="mu">'+(S.length?"Cada sesión te deja más rápido.":"Registra tu primera sesión y empieza a ver tu progreso.")+'</div></div></div>';
+ h+=instBox();
+ if(LOCAL)h+='<div class="t" style="border-color:var(--ok)"><b>📲 Encontramos datos en este dispositivo</b><div class="mu">'+LOCAL.sesiones.length+' sesión(es) y '+LOCAL.motos.length+' moto(s) guardadas antes de crear tu cuenta. Súbelas para tenerlas en cualquier dispositivo.</div><div class="row" style="margin:8px 0 0"><button class="btn add" id="impb" onclick="impLocal()">Subir a mi cuenta</button><button class="btn s" onclick="dropLocal()">Descartar</button></div></div>';
  if(p<100)h+='<div class="t"><b>Ficha de emergencia: '+p+'%</b><div class="bar" style="width:'+Math.max(p,3)+'%;height:8px;margin-top:6px"></div><div class="mu">Complétala: es tu respaldo si ocurre algo en pista.</div><div class="row" style="margin:8px 0 0"><button class="btn s" onclick="go(\'perfil\')">Completar ahora</button></div></div>';
  h+='<div class="stats"><div class="st"><b>'+hm(tm)+'</b><small>En pista</small></div><div class="st"><b>'+S.length+'</b><small>Sesiones</small></div><div class="st"><b>'+G.length+'</b><small>Pistas</small></div><div class="st"><b>'+tv+'</b><small>Vueltas</small></div></div>';
  if(S.length){var T=S.slice().sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"")||b.id.localeCompare(a.id)}),s=T[0],g=G.filter(function(x){return x.k===nk(s.circuito)})[0],ix=g.s.indexOf(s),pb=null,t=sTot(s);
   g.s.slice(0,ix).forEach(function(q){var b=sTot(q).b;if(b&&(pb==null||b<pb))pb=b});
   var msg=!t.b?"Anota tu mejor vuelta para ver tu avance.":pb==null?"🎉 Primera marca en esta pista: "+fmt(t.b):t.b<pb?'<span class="best">🔥 '+((pb-t.b)/1000).toFixed(3)+' s más rápido que tu marca anterior</span>':"+"+((t.b-pb)/1000).toFixed(3)+" s de tu mejor marca. ¡A por ella!";
   h+='<fieldset><legend>Tu último avance</legend><div><b>'+esc(s.circuito)+'</b> · '+esc(s.fecha)+'</div><div>'+msg+'</div><div class="mu" style="margin-bottom:10px">Mejor vuelta: '+fmt(t.b)+' · '+hm(t.m)+' en pista</div></fieldset>'}
- h+='<div class="row"><button class="btn add" onclick="go(\'ses\');editing=\'new\';ses()">+ Nueva sesión</button>'+(S.length?'<button class="btn" onclick="shareStats()">📸 Compartir mis números</button>':"")+'</div>';
+ h+='<div class="row"><button class="btn add" onclick="go(\'ses\');editing=\'new\';ses()">+ Nueva sesión</button>'+(S.length?(niv()>=1?'<button class="btn" onclick="shareStats()">📸 Compartir mis números</button>':'<button class="btn s" onclick="go(\'plan\')">🔒 Compartir mis números · Plus</button>'):"")+'</div>';
  var bd=[["🏁","Primera sesión",S.length>=1],["🔟","10 sesiones",S.length>=10],["⏱️","1 hora en pista",tm>=60],["🔥","10 horas en pista",tm>=600],["🗺️","3 pistas distintas",G.length>=3],["🏆","Debut en competencia",S.some(function(s){return /Carrera|Campeonato/.test(s.tipo)})],["📈","Mejoraste tu marca",imp],["🛟","Ficha completa",p===100]];
  h+='<fieldset><legend>Logros ('+bd.filter(function(b){return b[2]}).length+'/'+bd.length+')</legend>'+bd.map(function(b){return '<span class="bd'+(b[2]?" on":"")+'">'+b[0]+" "+b[1]+'</span>'}).join("")+'</fieldset>';
  $("#v").innerHTML=h}
+function impLocal(){var L0=LOCAL,b=$("#impb");b.textContent="Subiendo…";b.disabled=true;
+ var d={perfil:Object.assign({},L0.perfil,db.perfil.rut?db.perfil:{}),motos:L0.motos,sesiones:L0.sesiones,pistas:L0.pistas,foto:L0.foto||db.foto};
+ if(!d.perfil.correo)d.perfil.correo=ME.email;
+ api("PUT","/api/ficha",{datos:d,version:VER}).then(function(r){db=mig(r.datos);VER=r.version;LOCAL=null;try{localStorage.removeItem(KEY)}catch(e){}toast("Tus datos ya están en tu cuenta ✓");render()})
+ .catch(function(e){b.textContent="Subir a mi cuenta";b.disabled=false;toast(e.status===403?"Tus datos incluyen más de una pista: elige el plan Plus para subirlos.":e.message)})}
+function dropLocal(){try{localStorage.removeItem(KEY)}catch(e){}LOCAL=null;render()}
 
 function perfil(){$("#v").innerHTML=fotoBox()+'<form id="f">'+sections(PERFIL,db.perfil)+'<div class="row"><button class="btn" type="submit">Guardar</button><span class="ok" id="ok"></span></div></form>';
  var rt=$("#f").elements.rut;rt.onchange=function(){var r=fixRut(this.value);this.value=r.v;this.style.borderColor=r.ok?"":"var(--ac)"};
  $("#f").onsubmit=function(e){e.preventDefault();db.perfil=read(e.target);var r=fixRut(db.perfil.rut||"");if(db.perfil.rut)db.perfil.rut=r.v;save();$("#ok").textContent=db.perfil.rut&&!r.ok?"Guardado ✓ · revisa tu RUT":"Guardado ✓"}}
 
 /* MOTOS */
-function moto(){if(!db.motos.length){db.motos.push({id:uid()});save()}
+function moto(){if(niv()<1){$("#v").innerHTML=lockCard(1,"Ficha técnica de tus motos","Registra marca, modelo, piñón, catalina, suspensión, neumáticos y frenos de cada moto, y elígela en cada entrada a pista.")+'<fieldset disabled class="lk"><legend>Vista previa</legend>'+sections(MOTO,db.motos[0]||{})+'</fieldset>';return}
+ if(!db.motos.length){db.motos.push({id:uid()});save()}
  var m=db.motos.filter(function(x){return x.id===curMoto})[0]||db.motos[0];curMoto=m.id;
  $("#v").innerHTML='<div class="row">'+db.motos.map(function(x){return '<button class="btn '+(x.id===m.id?"":"s")+'" onclick="curMoto=\''+x.id+'\';moto()">'+esc(mName(x))+'</button>'}).join("")+'<button class="btn add" onclick="addMoto()">+ Agregar moto</button></div>'
  +'<form id="f">'+sections(MOTO,m)+'<div class="row"><button class="btn" type="submit">Guardar moto</button><button class="btn s" type="button" id="dm" onclick="delMoto()">Eliminar moto</button><span class="ok" id="ok"></span></div></form>';
@@ -202,12 +281,15 @@ var KEEP=["motoId","pinon","corona","neum","combustible","clima","trazado","sent
 function enRow(e){e=e||{};function F(f){return field(f,e).replace(/ name="/g,' data-k="')}
  var ms='<label>Moto utilizada<select data-k="motoId" onchange="motoSel(this)"><option value="">— Elegir moto —</option>'+db.motos.map(function(m){return '<option value="'+m.id+'"'+(e.motoId===m.id?" selected":"")+'>'+esc(mName(m))+'</option>'}).join("")+'</select></label>';
  return '<details class="en" open><summary></summary>'
- +'<fieldset><legend>1) Datos de la entrada</legend><div class="g">'+F(["minutos","Tiempo en pista (min)","number"])+F(["vueltas","Vueltas","number"])+F(["mejor","Mejor vuelta (m:ss.mmm)"])+F(["clima","Clima",["","Seco","Nublado","Húmedo","Lluvia"]])+F(["posicion","Posición (si aplica)","number"])+F(["trazado","Trazado utilizado"])+F(["sentido","Sentido de giro",["","Horario","Antihorario"]])+F(["obsPista","Observaciones de pista (estado, agarre, temperatura…)","textarea","full"])+'</div></fieldset>'
- +'<fieldset><legend>2) Moto</legend><div class="g">'+ms+F(["pinon","Piñón","number"])+F(["corona","Catalina / corona","number"])+F(["neum","Neumáticos (marca, compuesto, presiones)"])+F(["combustible","Combustible"])+F(["ajustes","Otros ajustes","textarea","full"])+'</div></fieldset>'
- +'<fieldset><legend>3) Sensaciones del piloto</legend><div class="g">'+F(["sensaciones","Cómo te sentiste (moto, pista, físico, confianza)","textarea","full"])+'</div></fieldset>'
- +'<fieldset><legend>4) Rendimiento del piloto</legend><div class="g">'+F(["nivel","Autoevaluación",["","1 · Bajo","2","3 · Normal","4","5 · Excelente"]])+F(["mejorado","Aspectos mejorados","textarea","full"])+F(["mejorar","Aspectos a mejorar","textarea","full"])+'</div></fieldset>'
- +'<fieldset><legend>5) Estadísticas en este circuito</legend><div class="cs"></div></fieldset>'
- +'<div class="row"><button type="button" class="btn" onclick="share(this)">Compartir imagen</button><button type="button" class="btn s" onclick="this.closest(\'.en\').remove();upCS()">Quitar entrada</button></div></details>'}
+ +'<fieldset><legend>1) Tiempos de la entrada</legend><div class="g">'+F(["minutos","Tiempo en pista (min)","number"])+F(["vueltas","Vueltas","number"])+F(["mejor","Mejor vuelta (m:ss.mmm)"])+F(["clima","Clima",["","Seco","Nublado","Húmedo","Lluvia"]])+F(["posicion","Posición (si aplica)","number"])+'</div></fieldset>'
+ +L(1,"2) Trazado y pista",'<div class="g">'+F(["trazado","Trazado utilizado"])+F(["sentido","Sentido de giro",["","Horario","Antihorario"]])+F(["obsPista","Observaciones de pista (estado, agarre, temperatura…)","textarea","full"])+'</div>')
+ +L(1,"3) Moto",'<div class="g">'+ms+F(["pinon","Piñón","number"])+F(["corona","Catalina / corona","number"])+F(["neum","Neumáticos (marca, compuesto, presiones)"])+F(["combustible","Combustible"])+F(["ajustes","Otros ajustes","textarea","full"])+'</div>')
+ +L(1,"4) Sensaciones del piloto",'<div class="g">'+F(["sensaciones","Cómo te sentiste (moto, pista, físico, confianza)","textarea","full"])+'</div>')
+ +L(1,"5) Rendimiento del piloto",'<div class="g">'+F(["nivel","Autoevaluación",["","1 · Bajo","2","3 · Normal","4","5 · Excelente"]])+F(["mejorado","Aspectos mejorados","textarea","full"])+F(["mejorar","Aspectos a mejorar","textarea","full"])+'</div>')
+ +L(1,"6) Estadísticas en este circuito",'<div class="cs"></div>')
+ +'<div class="row">'+(niv()>=1?'<button type="button" class="btn" onclick="share(this)">Compartir imagen</button>':'<button type="button" class="btn s" onclick="go(\'plan\')">🔒 Compartir imagen · Plus</button>')+'<button type="button" class="btn s" onclick="this.closest(\'.en\').remove();upCS()">Quitar entrada</button></div></details>'}
+// La única pista del plan Gratis: la de la sesión más antigua (igual que el servidor).
+function pistaG(){var s=db.sesiones.slice().sort(function(a,b){return String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.id).localeCompare(String(b.id))})[0];return s?s.circuito:null}
 function eVals(el){var o={};el.querySelectorAll("[data-k]").forEach(function(i){o[i.dataset.k]=i.value});return o}
 function addEn(){var l=document.querySelectorAll(".en"),p={};if(l.length){var a=eVals(l[l.length-1]);KEEP.forEach(function(k){p[k]=a[k]})}
  $("#ent").insertAdjacentHTML("beforeend",enRow(p));upCS()}
@@ -221,9 +303,9 @@ function motoSel(sel){var m=db.motos.filter(function(x){return x.id===sel.value}
 
 function ses(){var v=$("#v");
  if(editing!=null){var e=editing==="new"?{fecha:new Date().toISOString().slice(0,10),entradas:[{}]}:db.sesiones.filter(function(s){return s.id===editing})[0];
-  var cl=groups().map(function(g){return '<option value="'+esc(g.n)+'">'}).join("");
+  var cl=groups().map(function(g){return '<option value="'+esc(g.n)+'">'}).join(""),pg=niv()<1?pistaG():null,ci=pg&&editing==="new"?pg:e.circuito;
   v.innerHTML='<form id="f" oninput="dq()"><datalist id="circs">'+cl+'</datalist>'
-  +'<fieldset><legend>Datos de la sesión</legend><div class="g">'+field(["fecha","Fecha","date"],e)+'<label>Circuito<input name="circuito" list="circs" value="'+esc(e.circuito)+'"></label>'+field(["tipo","Tipo",TIPOS],e)+field(["evento","Nombre del evento (campeonato, exhibición, práctica, clase…)"],e)+'</div></fieldset>'
+  +'<fieldset><legend>Datos de la sesión</legend><div class="g">'+field(["fecha","Fecha","date"],e)+'<label>Circuito<input name="circuito" list="circs" value="'+esc(ci)+'"'+(pg?' readonly':'')+'>'+(pg?'<span class="mu" style="display:block;margin-top:4px">Plan Gratis: una sola pista. <button type="button" class="lnk" onclick="go(\'plan\')">Más pistas con Plus</button></span>':'')+'</label>'+field(["tipo","Tipo",TIPOS],e)+field(["evento","Nombre del evento (campeonato, exhibición, práctica, clase…)"],e)+'</div></fieldset>'
   +'<div id="ent">'+(e.entradas&&e.entradas.length?e.entradas:[{}]).map(function(x){return enRow(x)}).join("")+'</div>'
   +'<div class="row"><button type="button" class="btn add" onclick="addEn()">+ Agregar entrada a pista</button></div>'
   +'<div class="row"><button class="btn" type="submit">Guardar sesión</button><button class="btn s" type="button" onclick="editing=null;ses()">Cancelar</button><span class="ok" id="ok"></span></div></form>';
@@ -315,17 +397,35 @@ function datos(){var G=groups(),S=db.sesiones,tm=0,te=0,tv=0;
  S.forEach(function(s){var t=sTot(s);tm+=t.m;tv+=t.v;te+=(s.entradas||[]).length});
  var h='<div class="stats"><div class="st"><b>'+hm(tm)+'</b><small>Tiempo total en pista</small></div><div class="st"><b>'+S.length+'</b><small>Sesiones</small></div><div class="st"><b>'+te+'</b><small>Entradas a pista</small></div><div class="st"><b>'+tv+'</b><small>Vueltas</small></div><div class="st"><b>'+G.length+'</b><small>Pistas</small></div></div>';
  if(!G.length){h+='<p class="mu">Registra sesiones para ver tus datos por pista.</p>'}
- else{if(!dc||!G.filter(function(x){return x.k===dc}).length)dc=G[0].k;var g=G.filter(function(x){return x.k===dc})[0],mx=G[0].m||1;
+ else{if(!dc||!G.filter(function(x){return x.k===dc}).length)dc=G[0].k;var g=G.filter(function(x){return x.k===dc})[0],mx=G[0].m||1,h0=h;h="";
   h+='<fieldset><legend>Tiempo en pista por circuito</legend>'+G.map(function(x){return '<div><span class="mu">'+esc(x.n)+' · '+hm(x.m)+'</span><div class="bar" style="width:'+Math.max(2,x.m/mx*100)+'%"></div></div>'}).join("")+'</fieldset>';
   h+='<fieldset><legend>Pistas con registros</legend><div class="tw"><table><thead><tr><th>Pista</th><th>Sesiones</th><th>Entradas</th><th>Tiempo total</th><th>Mejor tiempo</th><th>Fecha</th></tr></thead><tbody>'+G.map(function(x){return '<tr class="'+(x.k===dc?"sel":"")+'" onclick="dc=\''+x.k.replace(/'/g,"\\'")+'\';datos()"><td>'+esc(x.n)+'</td><td>'+x.s.length+'</td><td>'+x.e+'</td><td>'+hm(x.m)+'</td><td class="best">'+fmt(x.b)+'</td><td>'+esc(x.bf)+'</td></tr>'}).join("")+'</tbody></table></div><div class="mu" style="margin:8px 0">Toca una pista para ver su detalle.</div></fieldset>';
   var P=[];g.s.forEach(function(s){var t=sTot(s);if(t.b)P.push({f:s.fecha||"",ms:t.b})});
-  h+='<fieldset><legend>'+esc(g.n)+': evolución</legend>'+chart(P)+'<div style="margin-top:12px"><b style="font-size:13px">Historial en esta pista</b></div><div class="tw"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Evento</th><th>Entrada</th><th>Clima</th><th>Tiempo</th><th>Mejor vuelta</th></tr></thead><tbody>'+hist(g)+'</tbody></table></div></fieldset>'}
- var c=db.consent||{};h+='<fieldset><legend>Privacidad</legend><p class="mu">Términos aceptados el '+esc(c.fecha||"—")+' (versión '+esc(c.version||"—")+')</p><label class="ck"><input type="checkbox" '+(c.mailing?"checked":"")+' onchange="db.consent.mailing=this.checked;save()"><span>Quiero recibir información de Rubus Racing en mi correo</span></label><div class="row"><button class="btn s" onclick="gate(\'terms\',1)">Ver términos</button><button class="btn s" id="wipe" onclick="wipe()">Borrar todos mis datos</button></div></fieldset>';
- h+='<fieldset><legend>Respaldo de datos</legend><p class="mu">Copia este texto y guárdalo (WhatsApp, correo, notas). Para restaurar en otro dispositivo, pégalo abajo.</p><label>Tus datos<textarea id="ex" readonly style="min-height:90px">'+esc(JSON.stringify(db))+'</textarea></label><div class="row"><button class="btn s" onclick="cp()">Copiar</button><span class="ok" id="cok"></span></div><label>Restaurar desde respaldo<textarea id="im" style="min-height:70px" placeholder="Pega aquí tu respaldo"></textarea></label><div class="row"><button class="btn" onclick="imp()">Restaurar</button><span class="ok" id="iok"></span></div></fieldset>';
+  h+='<fieldset><legend>'+esc(g.n)+': evolución</legend>'+chart(P)+'<div style="margin-top:12px"><b style="font-size:13px">Historial en esta pista</b></div><div class="tw"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Evento</th><th>Entrada</th><th>Clima</th><th>Tiempo</th><th>Mejor vuelta</th></tr></thead><tbody>'+hist(g)+'</tbody></table></div></fieldset>';
+  h=h0+L(1,"Estadísticas por pista",h)}
+ h+=cuenta();
  $("#v").innerHTML=h}
+function cuenta(){var c=ME.consentimiento||{};
+ return '<fieldset><legend>Mi cuenta</legend><p style="margin:0 0 6px"><b>'+esc(ME.email)+'</b></p><p class="mu" style="margin:0 0 10px">'+planTxt()+'</p>'
+ +'<div class="row"><button class="btn" onclick="go(\'plan\')">Cambiar plan</button><button class="btn s" onclick="pwForm()">Cambiar contraseña</button>'+(standalone()?"":'<button class="btn s" onclick="instalar()">📲 Instalar app</button>')+'<button class="btn s" onclick="logout()">Cerrar sesión</button></div><div id="pw"></div></fieldset>'
+ +notifBox()
+ +'<fieldset><legend>Privacidad</legend><p class="mu">Términos aceptados el '+esc(c.fecha||"—")+' (versión '+esc(c.version||"—")+')</p><label class="ck"><input type="checkbox" '+(c.mailing?"checked":"")+' onchange="setMail(this)"><span>Quiero recibir información de Rubus Racing en mi correo</span></label><div class="row"><button class="btn s" onclick="gate(\'terms\',1)">Ver términos</button><button class="btn s" onclick="dl()">Descargar mis datos</button><button class="btn s" id="wipe" onclick="wipe()">Borrar mi cuenta y mis datos</button></div></fieldset>'}
+function planTxt(){var t='Plan elegido: <b>'+esc(pName(ME.plan))+'</b>';if(ME.cortesia&&ME.planEfectivo===ME.cortesia)t+=' · Rubus Racing te asignó el plan <b>'+esc(pName(ME.cortesia))+'</b>'+(ME.cortesiaHasta?' hasta el '+esc(ME.cortesiaHasta):"")+' 🎁';return t}
+function setMail(c){api("PUT","/api/cuenta/mailing",{mailing:c.checked}).then(function(r){ME=r.user;toast("Preferencia guardada ✓")}).catch(function(e){c.checked=!c.checked;toast(e.message)})}
+function pwForm(){$("#pw").innerHTML='<form id="pwf" style="margin-top:10px"><div class="g"><label>Contraseña actual<input type="password" name="actual" autocomplete="current-password" required></label><label>Nueva contraseña<input type="password" name="nueva" autocomplete="new-password" minlength="8" required></label></div><div class="row"><button class="btn" type="submit">Guardar contraseña</button><span class="ok" id="pwm"></span></div></form>';
+ $("#pwf").onsubmit=function(e){e.preventDefault();api("PUT","/api/auth/password",read(e.target)).then(function(){$("#pw").innerHTML="";toast("Contraseña actualizada ✓")}).catch(function(x){$("#pwm").textContent=x.message})}}
+function dl(){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({cuenta:{email:ME.email,plan:ME.plan,consentimiento:ME.consentimiento},ficha:doc()},null,2)],{type:"application/json"}));a.download="rr-piloto-mis-datos.json";a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},2000)}
+
+/* PLANES */
+function planView(){$("#v").innerHTML='<h2 style="margin:4px 0 6px;font-size:20px">Tu plan</h2><p class="mu" style="margin:0 0 12px">'+planTxt()+'. Puedes cambiarlo cuando quieras.</p>'+planCards(ME.plan,"setPlan")}
+function setPlan(p){if(p===ME.plan)return;api("PUT","/api/cuenta/plan",{plan:p}).then(function(r){ME=r.user;MAT=null;toast("Plan "+pName(p)+" activado ✓");render()}).catch(function(e){toast(e.message)})}
+
+/* MATERIAL (provisorio: más adelante será una plataforma propia) */
+function mat(){if(niv()<2){$("#v").innerHTML=lockCard(2,"Material y beneficios","Accede a material educativo y de capacitación teórica de Rubus Racing, y a descuentos en marcas asociadas.");return}
+ if(!MAT){$("#v").innerHTML='<p class="mu">Cargando material…</p>';api("GET","/api/contenido").then(function(r){MAT=r.items;if(cur==="mat")mat()}).catch(function(e){$("#v").innerHTML='<p class="mu">'+esc(e.message)+'</p>'});return}
+ function lst(t){var I=MAT.filter(function(x){return x.tipo===t});return I.length?I.map(function(x){return '<div class="mt"><h3>'+esc(x.titulo)+'</h3>'+(x.resumen?'<div class="mu">'+esc(x.resumen)+'</div>':"")+(x.cuerpo?'<p>'+esc(x.cuerpo)+'</p>':"")+(/^https?:\/\//.test(x.enlace||"")?'<a class="btn s" style="display:inline-block;text-decoration:none;margin-top:4px" href="'+esc(x.enlace)+'" target="_blank" rel="noopener">Abrir →</a>':"")+'</div>'}).join(""):'<p class="mu">Pronto agregaremos contenido aquí.</p>'}
+ $("#v").innerHTML='<h2 style="margin:4px 0 12px;font-size:20px">Material y beneficios</h2><fieldset><legend>🎓 Material educativo</legend>'+lst("MATERIAL")+'</fieldset><fieldset><legend>🏷️ Descuentos en marcas</legend>'+lst("BENEFICIO")+'</fieldset>'}
 function hist(g){var R=[];g.s.forEach(function(s){(s.entradas||[]).forEach(function(e,i){R.push([s,e,i])})});return R.reverse().map(function(r){var s=r[0],e=r[1],m=toMs(e.mejor);return '<tr style="cursor:default"><td>'+esc(s.fecha)+'</td><td>'+esc(s.tipo)+'</td><td>'+esc(s.evento)+'</td><td>'+(r[2]+1)+'</td><td>'+esc(e.clima)+'</td><td>'+(e.minutos?esc(e.minutos)+" min":"—")+'</td><td class="'+(m&&m===g.b?"best":"")+'">'+(m?fmt(m):esc(e.mejor||"—"))+'</td></tr>'}).join("")}
-function cp(){var t=$("#ex");t.select();try{document.execCommand("copy");$("#cok").textContent="Copiado ✓"}catch(e){$("#cok").textContent="Selecciona y copia manualmente"}}
-function imp(){try{var d=JSON.parse($("#im").value);if(!d||typeof d!=="object")throw 0;db=mig(d);save();datos();$("#iok").textContent="Restaurado ✓"}catch(e){$("#iok").textContent="Respaldo no válido"}}
 
 $("#lg").src=LOGO;boot();
 </script>
