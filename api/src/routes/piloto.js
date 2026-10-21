@@ -6,7 +6,7 @@ import { asyncHandler, badRequest, conflict, forbidden, parse } from '../lib/htt
 import { fichaVacia, sanear } from '../lib/ficha.js';
 import { DEPORTES, nivel, veAnuncios } from '../lib/planes.js';
 import { circuitoPublico, clave, conImagenes } from '../lib/circuitos.js';
-import { progreso } from '../lib/logros.js';
+import { leerPremios, progreso } from '../lib/logros.js';
 import { COOKIE_NAME, cookieOptions, requireAprobado, toPublicUser } from '../auth/session.js';
 
 // Todo lo que hace un piloto con su cuenta ya aprobada.
@@ -195,12 +195,16 @@ pilotoRouter.post('/circuitos', asyncHandler(async (req, res) => {
   res.status(201).json({ circuito: circuitoPublico(c) });
 }));
 
+// Niveles y reglas de puntos vigentes (la app los usa para mostrar el avance).
+pilotoRouter.get('/premios', asyncHandler(async (_req, res) => res.json(await leerPremios())));
+
 // Recompensas por nivel: solo cuentas de pago. El código de cada premio se
 // entrega únicamente cuando el nivel calculado en el servidor lo desbloquea.
 pilotoRouter.get('/recompensas', asyncHandler(async (req, res) => {
   if (nivel(req.user) < 1) throw forbidden('Las recompensas son para cuentas Plus y Pro.');
   const f = await prisma.ficha.findUnique({ where: { usuarioId: req.user.id } });
-  const p = progreso(f?.datos);
+  const cfg = await leerPremios();
+  const p = progreso(f?.datos, cfg);
   const lista = await prisma.recompensa.findMany({ where: { activo: true }, orderBy: [{ nivel: 'asc' }, { orden: 'asc' }] });
   res.json({
     progreso: p,

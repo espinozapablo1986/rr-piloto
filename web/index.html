@@ -282,7 +282,7 @@ function boot(){hd(0);$("#v").innerHTML='<p class="mu" style="text-align:center;
   if(ME.estado!=="APROBADO"){gate("espera");return}
   // Cuenta creada por Rubus Racing: antes de usarla debe aceptar los términos.
   if(!ME.consentimiento){gate("terms");return}
-  return api("GET","/api/ficha").then(function(f){db=mig(f.datos);VER=f.version;LOCAL=localData();initAct();CIR={};CIRP={};ADC={};RWD=null;MAT=null;hd(1);nav();render();window.scrollTo(0,0);setTimeout(precargar,300)})})
+  return api("GET","/api/ficha").then(function(f){db=mig(f.datos);VER=f.version;LOCAL=localData();initAct();CIR={};CIRP={};ADC={};RWD=null;MAT=null;return cargarPremiosCfg()}).then(function(){if(!ME||ME.estado!=="APROBADO"||!ME.consentimiento)return;hd(1);nav();render();window.scrollTo(0,0);setTimeout(precargar,300)})})
  .catch(function(e){if(e.status===401){ME=null;gate("portada")}else gate("error",e.message)})}
 function logout(){api("POST","/api/auth/logout").catch(function(){}).then(function(){ME=null;db=mig({});VER=0;MAT=null;cur="inicio";gate("portada")})}
 function gate(s,ro){window.scrollTo(0,0);hd(0);var v=$("#v");
@@ -622,9 +622,17 @@ function dl(){var a=document.createElement("a");a.href=URL.createObjectURL(new B
 /* MEDALLAS, COPAS, NIVELES Y RECOMPENSAS (ver PREMIOS en campos.js) */
 var RWD=null;
 // Igual que api/src/lib/logros.js: récords por deporte y circuito, en orden cronológico.
-function progreso(){var ses=db.sesiones.slice().sort(function(a,b){return String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.id).localeCompare(String(b.id))}),mejor={},mins=0,rec=0;
- ses.forEach(function(s){var b=null;(s.entradas||[]).forEach(function(e){mins+=+e.minutos||0;var ms=toMs(e.mejor);if(ms&&(b==null||ms<b))b=ms});var k=(s.deporte||"moto")+"|"+nk(s.circuito);if(b&&nk(s.circuito)){if(mejor[k]!=null&&b<mejor[k])rec++;if(mejor[k]==null||b<mejor[k])mejor[k]=b}});
- mins=Math.round(mins);var pts=mins+rec*PREMIOS.puntosRecord,n=1;PREMIOS.niveles.forEach(function(x,i){if(pts>=x[0])n=i+1});return{minutos:mins,records:rec,puntos:pts,nivel:n}}
+function progreso(){var R=PREMIOS.reglas||{minuto:1,record:PREMIOS.puntosRecord,sesion:0,vuelta:0,circuito:0,competencia:0,ficha:0};
+ var ses=db.sesiones.slice().sort(function(a,b){return String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.id).localeCompare(String(b.id))}),mejor={},mins=0,vu=0,rec=0,comp=0,cir={};
+ ses.forEach(function(s){var b=null;(s.entradas||[]).forEach(function(e){mins+=+e.minutos||0;vu+=+e.vueltas||0;var ms=toMs(e.mejor);if(ms&&(b==null||ms<b))b=ms});var k=(s.deporte||"moto")+"|"+nk(s.circuito);if(nk(s.circuito))cir[k]=1;if(/Clasificación|Carrera|Campeonato/.test(s.tipo||""))comp++;if(b&&nk(s.circuito)){if(mejor[k]!=null&&b<mejor[k])rec++;if(mejor[k]==null||b<mejor[k])mejor[k]=b}});
+ mins=Math.round(mins);var nc=Object.keys(cir).length,fi=pct()===100,pts=Math.round(mins*R.minuto+rec*R.record+ses.length*R.sesion+vu*R.vuelta+nc*R.circuito+comp*R.competencia+(fi?R.ficha:0)),n=1;
+ PREMIOS.niveles.forEach(function(x,i){if(pts>=x[0])n=i+1});return{minutos:mins,records:rec,puntos:pts,nivel:n,sesiones:ses.length,vueltas:vu,circuitos:nc,competencias:comp,ficha:fi}}
+// Niveles y reglas de puntos que define Rubus Racing en el panel.
+function cargarPremiosCfg(){return api("GET","/api/premios").then(function(c){PREMIOS.niveles=c.niveles.map(function(n){return [n.puntos,n.nombre]});PREMIOS.reglas=c.reglas;PREMIOS.puntosRecord=c.reglas.record}).catch(function(){})}
+var RTXT=[["minuto","por cada minuto en pista"],["record","por cada récord personal"],["sesion","por cada sesión registrada"],["vuelta","por cada vuelta"],["circuito","por cada circuito nuevo"],["competencia","por cada clasificación, carrera o campeonato"],["ficha","al completar tu ficha de emergencia (una vez)"]];
+function reglasBox(p){var R=PREMIOS.reglas;if(!R)return "";var L=RTXT.filter(function(x){return R[x[0]]});if(!L.length)return "";
+ var v={minuto:p.minutos,record:p.records,sesion:p.sesiones,vuelta:p.vueltas,circuito:p.circuitos,competencia:p.competencias,ficha:p.ficha?1:0};
+ return '<fieldset><legend class="ttl">'+ic("estrella",16)+'Cómo sumar puntos</legend>'+L.map(function(x){return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--bd)"><span><b>'+R[x[0]]+' pts</b> '+x[1]+'</span><span class="mu" style="white-space:nowrap">'+Math.round(v[x[0]]*R[x[0]])+' pts</span></div>'}).join("")+'</fieldset>'}
 function cargarRWD(){return api("GET","/api/recompensas").then(function(r){var cambio=!RWD||JSON.stringify(RWD.items)!==JSON.stringify(r.items)||JSON.stringify(RWD.progreso)!==JSON.stringify(r.progreso);RWD=r;if(cambio&&cur==="prem")premios()}).catch(function(e){toast(e.message)})}
 // Al entrar se precarga lo que las pestañas piden al servidor la primera vez.
 function precargar(){if(!CIR[ACT])cargarCir(function(){});if(niv()>=1&&!RWD)cargarRWD();if(niv()>=2&&!MAT)api("GET","/api/contenido").then(function(r){MAT=r.items}).catch(function(){})}
@@ -635,14 +643,14 @@ function nivelCard(p,full){var L=PREMIOS.niveles,cur=L[p.nivel-1],nx=L[p.nivel],
 function medallas(p){function md(lista,v,ico,u,fm){return '<div class="mds">'+lista.map(function(x){var ok=v>=x[0];return '<div class="md'+(ok?"":" no")+'"><span style="color:'+x[2]+'">'+ic(ico,38)+'</span><b>'+esc(x[1])+'</b><small>'+(ok?"Conseguida":"Faltan "+fm(x[0]-v))+'</small><small>'+fm(x[0])+' '+u+'</small></div>'}).join("")+'</div>'}
  return '<fieldset><legend class="ttl">'+ic("medalla",16)+'Medallas por récords personales ('+p.records+')</legend><p class="mu" style="margin:0 0 10px">Cada vez que mejoras tu mejor vuelta en un circuito sumas un récord.</p>'+md(PREMIOS.medallas,p.records,"medalla","récords",function(n){return n})+'</fieldset>'
  +'<fieldset><legend class="ttl">'+ic("copa",16)+'Copas por tiempo en pista ('+hm(p.minutos)+')</legend>'+md(PREMIOS.copas,p.minutos,"copa","en pista",hm)+'</fieldset>'}
-function premios(){var p=progreso(),h='<h2 class="ttl" style="margin:4px 0 12px;font-size:20px">'+ic("premio",22)+'Medallas, copas y premios</h2>'+nivelCard(p,1);
+function premios(){var p=progreso(),h='<h2 class="ttl" style="margin:4px 0 12px;font-size:20px">'+ic("premio",22)+'Medallas, copas y premios</h2>'+nivelCard(p,1)+reglasBox(p);
  if(niv()<1){h+=lockCard(1,"Recompensas","Gana medallas por cada récord personal, copas por tus horas en pista y desbloquea premios y descuentos al subir de nivel.")+'<fieldset disabled class="lk"><legend>Vista previa</legend>'+medallas(p)+'</fieldset>';$("#v").innerHTML=h;return}
  h+=medallas(p);
  if(!RWD){$("#v").innerHTML=h+'<p class="mu">Cargando premios…</p>';cargarRWD();return}
  // Con datos ya cargados se muestran al instante y se refrescan por detrás.
  if(RWD.viejo){RWD.viejo=0;cargarRWD()}
  var n=RWD.progreso.nivel,I=RWD.items;
- h+='<fieldset><legend class="ttl">'+ic("regalo",16)+'Premios por nivel</legend><p class="mu" style="margin:0 0 10px">Puntos: 1 por minuto en pista y '+PREMIOS.puntosRecord+' por cada récord personal. Al subir de nivel desbloqueas los premios de Rubus Racing y sus sponsors.</p>'
+ h+='<fieldset><legend class="ttl">'+ic("regalo",16)+'Premios por nivel</legend><p class="mu" style="margin:0 0 10px">Al subir de nivel desbloqueas los premios de Rubus Racing y sus sponsors.</p>'
  +(I.length?PREMIOS.niveles.map(function(x,i){var R=I.filter(function(r){return r.nivel===i+1});if(!R.length)return "";var ok=n>=i+1;
   return '<h4 class="ttl" style="margin:14px 0 8px">'+(ok?ic("ok",16):ic("candado",16))+'Nivel '+(i+1)+' · '+esc(x[1])+(ok?"":' <span class="mu" style="font-weight:400">('+x[0]+' pts)</span>')+'</h4>'+R.map(function(r){return '<div class="t rw'+(r.desbloqueada?"":" no")+'"><span style="color:var(--ac)">'+ic(r.desbloqueada?"regalo":"candado",30)+'</span><div style="min-width:0;flex:1"><b>'+esc(r.titulo)+'</b>'+(r.sponsor?'<div class="mu">'+esc(r.sponsor)+'</div>':"")+(r.descripcion?'<div style="margin-top:4px;white-space:pre-wrap">'+esc(r.descripcion)+'</div>':"")
    +(r.desbloqueada?(r.codigo?'<div class="cod" id="rw'+r.id+'">'+esc(r.codigo)+'</div> <button class="btn s" onclick="cpTxt(\'rw'+r.id+'\')">'+ic("copiar")+'Copiar</button>':"")+(/^https?:\/\//.test(r.enlace||"")?' <a class="btn s" style="text-decoration:none;margin-top:8px" href="'+esc(r.enlace)+'" target="_blank" rel="noopener">Usar premio'+ic("enlace",15)+'</a>':""):'<div class="mu" style="margin-top:6px">Se desbloquea en el nivel '+r.nivel+'.</div>')+'</div></div>'}).join("")}).join(""):'<p class="mu">Pronto habrá premios para desbloquear.</p>')+'</fieldset>';

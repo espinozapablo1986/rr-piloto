@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
+import crypto from 'node:crypto';
 import { asyncHandler, badRequest, conflict, notFound, parse } from '../lib/http.js';
 import { DEPORTES, planEfectivo } from '../lib/planes.js';
 import { calcularDashboard } from '../lib/dashboard.js';
+import { guardarPremios, leerPremios } from '../lib/logros.js';
 import { clave, conImagenes, circuitoPublico, usoCircuitos, vincular, vincularLote } from '../lib/circuitos.js';
 import { requireAdmin, revokeSessions, toPublicUser } from '../auth/session.js';
 import { hashPassword } from '../auth/password.js';
@@ -114,6 +116,72 @@ adminRouter.post('/usuarios', asyncHandler(async (req, res) => {
     include: { ficha: true },
   });
   res.status(201).json({ usuario: resumen(u) });
+}));
+
+// Importación de pilotos desde CSV (el panel ya lo convirtió en filas). Cruza
+// por correo: crea la cuenta (aprobada) o actualiza plan, deportes y datos
+// básicos de la ficha. Si una cuenta nueva no trae contraseña se genera una y
+// se devuelve para que el administrador se la entregue al piloto.
+const FilaPiloto = z.object({
+  email: z.string().trim().toLowerCase().email('Correo no válido.').max(160),
+  nombre: z.string().trim().max(120).optional().default(''),
+  password: z.union([z.literal(''), z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.').max(200)]).optional().default(''),
+  plan: z.union([z.literal(''), plan]).optional().default(''),
+  deportes: z.array(z.enum(DEPORTES)).optional().default([]),
+  telefono: z.string().trim().max(60).optional().default(''),
+  rut: z.string().trim().max(20).optional().default(''),
+});
+const ImportarPilotos = z.object({ filas: z.array(z.record(z.string(), z.unknown())).min(1, 'El archivo no tiene filas.').max(300, 'Máximo 300 pilotos por archivo.') });
+const claveTemporal = () => crypto.randomBytes(9).toString('base64url').slice(0, 10);
+
+adminRouter.post('/usuarios/importar', asyncHandler(async (req, res) => {
+  const { filas } = parse(ImportarPilotos, req.body);
+  const resultado = [];
+  const vistos = new Set();
+  for (let i = 0; i < filas.length; i += 1) {
+    const nf = Number(filas[i]._fila) || i + 2;
+    const r = FilaPiloto.safeParse(filas[i]);
+    if (!r.success) { resultado.push({ fila: nf, email: String(filas[i].email || ''), accion: 'error', error: r.error.issues.map((x) => x.message).join(' ') }); continue; }
+    const d = r.data;
+    if (vistos.has(d.email)) { resultado.push({ fila: nf, email: d.email, accion: 'error', error: 'Correo repetido en el archivo.' }); continue; }
+    vistos.add(d.email);
+    const u = await prisma.usuario.findFirst({ where: { OR: [{ email: d.email }, { usuario: d.email }] }, include: { ficha: true } });
+    if (u && u.rol !== 'PILOTO') { resultado.push({ fila: nf, email: d.email, accion: 'error', error: 'Ese correo es de un administrador.' }); continue; }
+    if (u) {
+      const perfil = { ...(u.ficha?.datos?.perfil || {}) };
+      if (d.nombre) perfil.nombre = d.nombre;
+      if (d.telefono) perfil.telefono = d.telefono;
+      if (d.rut) perfil.rut = d.rut;
+      await prisma.usuario.update({
+        where: { id: u.id },
+        data: { ...(d.plan ? { plan: d.plan } : {}), ...(d.deportes.length ? { deportes: [...new Set(d.deportes)] } : {}) },
+      });
+      const datos = { ...(u.ficha?.datos || fichaVacia()), perfil: limpiarPerfil(perfil) };
+      await prisma.ficha.upsert({
+        where: { usuarioId: u.id },
+        update: { datos, version: (u.ficha?.version || 0) + 1 },
+        create: { usuarioId: u.id, datos, version: 1 },
+      });
+      resultado.push({ fila: nf, email: d.email, accion: 'actualizado' });
+      continue;
+    }
+    if (d.nombre.length < 2) { resultado.push({ fila: nf, email: d.email, accion: 'error', error: 'Falta el nombre del piloto nuevo.' }); continue; }
+    const generada = d.password ? '' : claveTemporal();
+    await prisma.usuario.create({
+      data: {
+        email: d.email, hash: await hashPassword(d.password || generada, 10), plan: d.plan || 'GRATIS',
+        deportes: d.deportes.length ? [...new Set(d.deportes)] : ['moto'], estado: 'APROBADO', aprobado: new Date(),
+        ficha: { create: { datos: fichaVacia(limpiarPerfil({ nombre: d.nombre, correo: d.email, telefono: d.telefono, rut: d.rut })) } },
+      },
+    });
+    resultado.push({ fila: nf, email: d.email, nombre: d.nombre, accion: 'creado', ...(generada ? { password: generada } : {}) });
+  }
+  res.json({
+    creados: resultado.filter((x) => x.accion === 'creado').length,
+    actualizados: resultado.filter((x) => x.accion === 'actualizado').length,
+    errores: resultado.filter((x) => x.accion === 'error').length,
+    resultado,
+  });
 }));
 
 const Perfil = z.object({ perfil: z.record(z.string(), z.unknown()) });
@@ -475,7 +543,7 @@ adminRouter.delete('/circuitos/:id/imagenes/:img', asyncHandler(async (req, res)
 /* Recompensas por nivel */
 
 const Recompensa = z.object({
-  nivel: z.number().int().min(1).max(7),
+  nivel: z.number().int().min(1).max(30),
   titulo: z.string().trim().min(1, 'Falta el título.').max(160),
   descripcion: z.string().trim().max(1000).optional().default(''),
   sponsor: z.string().trim().max(120).optional().default(''),
@@ -485,6 +553,49 @@ const Recompensa = z.object({
   activo: z.boolean().optional().default(true),
   orden: z.number().int().min(-9999).max(9999).optional().default(0),
 });
+
+/* Niveles y reglas de puntos */
+
+const regla = z.number().min(0, 'Los puntos no pueden ser negativos.').max(100000);
+const Premios = z.object({
+  niveles: z.array(z.object({
+    id: z.string().max(40).optional().default(''),
+    nombre: z.string().trim().min(1, 'Cada nivel necesita un nombre.').max(40),
+    puntos: z.number().int().min(0).max(10_000_000),
+  })).min(2, 'Debe haber al menos 2 niveles.').max(30, 'Máximo 30 niveles.'),
+  reglas: z.object({
+    minuto: regla, record: regla, sesion: regla, vuelta: regla, circuito: regla, competencia: regla, ficha: regla,
+  }),
+});
+
+adminRouter.get('/premios', asyncHandler(async (_req, res) => res.json(await leerPremios())));
+
+// Guarda niveles y reglas. Los niveles se ordenan por puntos; las recompensas
+// siguen a su nivel aunque cambie de posición, y las de un nivel eliminado
+// pasan al nivel anterior que siga existiendo.
+adminRouter.put('/premios', asyncHandler(async (req, res) => {
+  const d = parse(Premios, req.body);
+  const niveles = d.niveles
+    .map((n) => ({ ...n, id: n.id || `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` }))
+    .sort((a, b) => a.puntos - b.puntos);
+  if (niveles[0].puntos !== 0) throw badRequest('El primer nivel debe empezar en 0 puntos.');
+  if (new Set(niveles.map((n) => n.puntos)).size !== niveles.length) throw badRequest('Dos niveles no pueden pedir los mismos puntos.');
+  const antes = (await leerPremios()).niveles;
+  const nuevoIdx = new Map(niveles.map((n, i) => [n.id, i + 1]));
+  const destino = (nivelViejo) => {
+    for (let i = Math.min(nivelViejo, antes.length) - 1; i >= 0; i -= 1) {
+      const n = nuevoIdx.get(antes[i].id);
+      if (n) return n;
+    }
+    return 1;
+  };
+  const rs = await prisma.recompensa.findMany({ select: { id: true, nivel: true } });
+  for (const r of rs) {
+    const n = Math.min(destino(r.nivel), niveles.length);
+    if (n !== r.nivel) await prisma.recompensa.update({ where: { id: r.id }, data: { nivel: n } });
+  }
+  res.json(await guardarPremios({ niveles, reglas: d.reglas }));
+}));
 
 adminRouter.get('/recompensas', asyncHandler(async (_req, res) => {
   res.json({ items: await prisma.recompensa.findMany({ orderBy: [{ nivel: 'asc' }, { orden: 'asc' }] }) });

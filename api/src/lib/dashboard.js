@@ -1,5 +1,6 @@
 import { prisma } from './db.js';
 import { cortesiaVigente, planEfectivo } from './planes.js';
+import { leerPremios, progreso } from './logros.js';
 
 // Indicadores del panel de administración. Se calculan al vuelo sobre las
 // fichas: a la escala de la beta es más simple y siempre está al día.
@@ -32,6 +33,8 @@ export const calcularDashboard = async ({ deporte, dias }) => {
   const d60 = iso(new Date(ahora - 60 * DIA));
   const meses = ultimosMeses(12);
 
+  const cfg = await leerPremios();
+  const porNivel = cfg.niveles.map((n) => ({ nombre: n.nombre, puntos: n.puntos, pilotos: 0 }));
   const [us, ads, contenido, circuitosPendientes] = await Promise.all([
     prisma.usuario.findMany({ where: { rol: 'PILOTO' }, include: { ficha: true } }),
     prisma.anuncio.findMany({
@@ -72,6 +75,8 @@ export const calcularDashboard = async ({ deporte, dias }) => {
     if (plan === 'PRO' && u.anunciosPro) k.proConAnuncios += 1;
 
     const datos = u.ficha?.datos || {};
+    const pr = progreso(datos, cfg);
+    porNivel[pr.nivel - 1].pilotos += 1;
     const perfil = datos.perfil || {};
     const nombre = perfil.nombre || u.email;
     const motos = new Map((datos.motos || []).map((m) => [m.id, m]));
@@ -89,7 +94,7 @@ export const calcularDashboard = async ({ deporte, dias }) => {
     else if (ultima < d60) k.inactivos60 += 1;
 
     const r = {
-      id: u.id, nombre, email: u.email, telefono: perfil.telefono || '', plan,
+      id: u.id, nombre, email: u.email, telefono: perfil.telefono || '', plan, nivel: pr.nivel, puntos: pr.puntos,
       mailing: Boolean(u.consentimiento?.mailing), deportes: deps,
       sesiones: 0, entradas: 0, vueltas: 0, minutos: 0, ultima, circuitos: {},
     };
@@ -147,6 +152,7 @@ export const calcularDashboard = async ({ deporte, dias }) => {
     filtro: { deporte: deporte || '', dias: dias || 0, desde },
     kpis: { ...k, circuitos: circuitos.length, contenido, circuitosPendientes },
     porDeporte,
+    porNivel,
     series: {
       registros: meses.map((m) => ({ m, n: registros[m] })),
       sesiones: meses.map((m) => ({ m, n: sesMes[m] })),

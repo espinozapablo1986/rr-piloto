@@ -193,3 +193,11 @@ model Recompensa {
   creado      DateTime @default(now())
   actualizado DateTime @updatedAt
 }
+
+// Ajustes de la plataforma editables desde el panel (por ejemplo, los niveles y
+// las reglas de puntos de las recompensas), guardados como JSON por clave.
+model Ajuste {
+  clave       String   @id
+  valor       Json
+  actualizado DateTime @updatedAt
+}

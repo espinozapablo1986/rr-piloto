@@ -5,7 +5,9 @@ const ROUNDS = 12;
 // el tiempo de respuesta no delate qué correos están registrados.
 const DUMMY = bcrypt.hashSync('sin-cuenta', ROUNDS);
 
-export const hashPassword = (plain) => bcrypt.hash(plain, ROUNDS);
+// `rondas` menor solo para importaciones masivas de claves temporales: con 12
+// rondas, cientos de cuentas tardarían minutos.
+export const hashPassword = (plain, rondas = ROUNDS) => bcrypt.hash(plain, rondas);
 
 export const verifyPassword = async (plain, hash) => {
   if (!hash) {

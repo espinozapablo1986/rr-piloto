@@ -18,6 +18,10 @@ El piloto cambia de plan cuando quiere. El administrador también puede cambiár
 
 Bajar de plan no borra datos: lo que el plan ya no permite editar queda congelado y se conserva.
 
+## Pilotos por CSV y Excel
+
+En `/admin → Pilotos` se descarga una plantilla CSV (`email;nombre;password;plan;deportes;telefono;rut`) y se importa con vista previa: cruza por correo, crea cuentas aprobadas o actualiza plan, deportes y datos básicos. Si una cuenta nueva no trae contraseña se genera una, que se descarga al final para entregarla. La lista de pilotos se exporta a CSV o Excel (.xlsx).
+
 ## Administradores
 
 Se gestionan en `/admin → Administradores`. Pueden tener nombre de usuario, correo o ambos, y entran con cualquiera de los dos. Un administrador no puede eliminarse a sí mismo y siempre debe quedar al menos uno. El administrador inicial se crea desde `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el `.env`.
@@ -32,7 +36,7 @@ Cada circuito admite hasta 5 fotos: la principal es la vista aérea, que el pilo
 
 ## Medallas, copas y recompensas
 
-El piloto suma 1 punto por minuto en pista y 30 por cada récord personal (mejorar su mejor vuelta en un circuito). Gana medallas por récords y copas por tiempo en pista, y sube de nivel (de Novato a Leyenda). El módulo Premios muestra su progreso; los premios y descuentos por nivel, creados en `/admin → Recompensas`, son solo para cuentas Plus y Pro, y el servidor solo entrega el código cuando el nivel calculado lo desbloquea. Los umbrales están en `web/campos.js` (PREMIOS) y `api/src/lib/logros.js`, que deben coincidir.
+Los niveles y las reglas de puntos se editan en `/admin → Recompensas` (por minuto en pista, récord personal, sesión, vuelta, circuito nuevo, competencia y ficha completa); por defecto, 1 punto por minuto y 30 por récord. Gana medallas por récords y copas por tiempo en pista, y sube de nivel (de Novato a Leyenda). El módulo Premios muestra su progreso; los premios y descuentos por nivel, creados en `/admin → Recompensas`, son solo para cuentas Plus y Pro, y el servidor solo entrega el código cuando el nivel calculado lo desbloquea. La configuración se guarda en la tabla `Ajuste` (clave `premios`); el cálculo está en `api/src/lib/logros.js` y la app lo replica con la configuración de `GET /api/premios`.
 
 ## Publicidad
 
