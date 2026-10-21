@@ -5,7 +5,7 @@ import { prisma } from '../lib/db.js';
 import { asyncHandler, badRequest, conflict, notFound, parse } from '../lib/http.js';
 import { DEPORTES, planEfectivo } from '../lib/planes.js';
 import { calcularDashboard } from '../lib/dashboard.js';
-import { clave, conImagenes, circuitoPublico, usoCircuitos, vincular } from '../lib/circuitos.js';
+import { clave, conImagenes, circuitoPublico, usoCircuitos, vincular, vincularLote } from '../lib/circuitos.js';
 import { requireAdmin, revokeSessions, toPublicUser } from '../auth/session.js';
 import { hashPassword } from '../auth/password.js';
 
@@ -245,6 +245,46 @@ adminRouter.post('/circuitos/:id/aprobar', asyncHandler(async (req, res) => {
   const c = await prisma.circuito.update({ where: { id: p.id }, data: { ...cDatos(d), estado: 'APROBADO' } });
   const n = await vincular({ ids: [c.id], nombres: d.vincular, destino: c });
   res.json({ circuito: c, vinculadas: n });
+}));
+
+const Importar = z.object({ filas: z.array(z.record(z.string(), z.unknown())).min(1, 'El archivo no tiene filas.').max(1000, 'Máximo 1.000 filas por archivo.') });
+
+// Importación desde CSV (el panel ya lo convirtió en filas). Cada fila se cruza
+// por id o, si no trae, por nombre: actualiza el circuito aprobado que coincida
+// o crea uno nuevo. Las filas con errores se informan y no se aplican.
+adminRouter.post('/circuitos/importar', asyncHandler(async (req, res) => {
+  const { filas } = parse(Importar, req.body);
+  const lista = await prisma.circuito.findMany({ where: { estado: 'APROBADO' } });
+  const porId = new Map(lista.map((c) => [c.id, c]));
+  const porClave = new Map(lista.map((c) => [c.clave, c]));
+  const vistas = new Set();
+  const errores = [];
+  const lote = [];
+  const renombrados = [];
+  let creados = 0;
+  let actualizados = 0;
+  for (let i = 0; i < filas.length; i += 1) {
+    const r = Circuito.safeParse({ ...filas[i], vincular: [] });
+    if (!r.success) { errores.push({ fila: Number(filas[i]._fila) || i + 2, error: r.error.issues.map((x) => x.message).join(' ') }); continue; }
+    const d = r.data;
+    const k = clave(d.nombre);
+    if (vistas.has(k)) { errores.push({ fila: Number(filas[i]._fila) || i + 2, error: `«${d.nombre}» está repetido en el archivo.` }); continue; }
+    vistas.add(k);
+    const id = String(filas[i].id || '').trim();
+    const previo = (id && porId.get(id)) || porClave.get(k);
+    const otro = porClave.get(k);
+    if (previo && otro && otro.id !== previo.id) { errores.push({ fila: Number(filas[i]._fila) || i + 2, error: `Ya existe otro circuito llamado «${otro.nombre}».` }); continue; }
+    const c = previo
+      ? await prisma.circuito.update({ where: { id: previo.id }, data: cDatos(d) })
+      : await prisma.circuito.create({ data: { ...cDatos(d), estado: 'APROBADO' } });
+    if (previo) { actualizados += 1; porClave.delete(previo.clave); if (previo.nombre !== c.nombre) renombrados.push(c); } else creados += 1;
+    porId.set(c.id, c); porClave.set(c.clave, c);
+    lote.push({ destino: c, nombres: [d.nombre] });
+  }
+  // Los renombrados se propagan a sus sesiones; los nombres escritos a mano se consolidan.
+  for (const c of renombrados) await vincular({ ids: [c.id], destino: c });
+  const vinculadas = await vincularLote(lote);
+  res.json({ creados, actualizados, errores, vinculadas });
 }));
 
 const Fusion = z.object({ destinoId: z.string().min(1) });

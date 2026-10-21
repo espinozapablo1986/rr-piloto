@@ -26,6 +26,8 @@ Se gestionan en `/admin → Administradores`. Pueden tener nombre de usuario, co
 
 Los pilotos eligen el circuito desde un catálogo que se administra en `/admin → Pistas` (nombre, ubicación, deportes, trazados y longitud). Si falta uno, el piloto lo propone desde la sesión y lo usa de inmediato como provisorio; el administrador lo aprueba (corrigiendo los datos), lo fusiona con uno existente o lo rechaza. Al aprobar o fusionar, todas las sesiones que lo usaban quedan consolidadas con el nombre oficial. Los nombres que se escribieron a mano antes del catálogo aparecen en la misma pestaña para sumarlos o asignarlos.
 
+El catálogo se exporta e importa en CSV (columnas `id;nombre;ciudad;region;pais;deportes;trazados;longitud_m`, con deportes y trazados separados por `|`; el archivo exportado sirve de plantilla). La importación muestra una vista previa: cada fila se cruza por `id` o por nombre, crea o actualiza, y las filas con errores no se aplican. Las fotos no viajan en el CSV.
+
 Cada circuito admite hasta 5 fotos: la principal es la vista aérea, que el piloto ve al elegirlo, aparece en miniatura en cada sesión y es el fondo por defecto de las imágenes para redes. Las fotos se sirven desde `/api/img/circuito/:id` con caché larga.
 
 ## Medallas, copas y recompensas

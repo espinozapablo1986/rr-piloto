@@ -41,6 +41,30 @@ export const vincular = async ({ ids = [], nombres = [], destino }) => {
   return n;
 };
 
+// Igual que vincular, pero para muchos circuitos en una sola pasada por las
+// fichas (importación masiva). `lote` es una lista de { destino, nombres }.
+export const vincularLote = async (lote) => {
+  const porClave = new Map();
+  for (const { destino, nombres } of lote) for (const n of nombres) porClave.set(clave(n), destino);
+  if (!porClave.size) return 0;
+  const fichas = await prisma.ficha.findMany({ select: { usuarioId: true, datos: true, version: true } });
+  let n = 0;
+  for (const f of fichas) {
+    const ses = Array.isArray(f.datos?.sesiones) ? f.datos.sesiones : [];
+    let cambio = false;
+    for (const s of ses) {
+      if (s.circuitoId) continue;
+      const d = porClave.get(clave(s.circuito));
+      if (!d) continue;
+      s.circuitoId = d.id; s.circuito = d.nombre; cambio = true; n += 1;
+    }
+    if (cambio) {
+      await prisma.ficha.update({ where: { usuarioId: f.usuarioId }, data: { datos: { ...f.datos, sesiones: ses }, version: f.version + 1 } });
+    }
+  }
+  return n;
+};
+
 // Uso de cada circuito y nombres escritos a mano que aún no están en el catálogo.
 export const usoCircuitos = async () => {
   const fichas = await prisma.ficha.findMany({ select: { datos: true } });
