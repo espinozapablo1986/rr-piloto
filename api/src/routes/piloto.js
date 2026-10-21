@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { asyncHandler, conflict, forbidden, parse } from '../lib/http.js';
 import { fichaVacia, sanear } from '../lib/ficha.js';
-import { nivel } from '../lib/planes.js';
+import { DEPORTES, nivel, veAnuncios } from '../lib/planes.js';
 import { COOKIE_NAME, cookieOptions, requireAprobado, toPublicUser } from '../auth/session.js';
 
 // Todo lo que hace un piloto con su cuenta ya aprobada.
@@ -68,6 +68,59 @@ pilotoRouter.delete('/cuenta', asyncHandler(async (req, res) => {
   if (req.user.rol === 'ADMIN') throw forbidden('Una cuenta de administrador no se borra desde aquí.');
   await prisma.usuario.delete({ where: { id: req.user.id } });
   res.clearCookie(COOKIE_NAME, { ...cookieOptions(), maxAge: undefined });
+  res.json({ ok: true });
+}));
+
+const Deportes = z.object({ deportes: z.array(z.enum(DEPORTES)).min(1, 'Elige al menos un deporte.').max(DEPORTES.length) });
+
+pilotoRouter.put('/cuenta/deportes', asyncHandler(async (req, res) => {
+  const { deportes } = parse(Deportes, req.body);
+  const u = await prisma.usuario.update({ where: { id: req.user.id }, data: { deportes: [...new Set(deportes)] } });
+  res.json({ user: toPublicUser(u) });
+}));
+
+const Ads = z.object({ activo: z.boolean() });
+
+// Solo tiene efecto en el plan Pro: los demás planes siempre ven anuncios.
+pilotoRouter.put('/cuenta/anuncios', asyncHandler(async (req, res) => {
+  const { activo } = parse(Ads, req.body);
+  const u = await prisma.usuario.update({ where: { id: req.user.id }, data: { anunciosPro: activo } });
+  res.json({ user: toPublicUser(u) });
+}));
+
+const LUGARES = ['INICIO', 'SESIONES', 'DATOS'];
+const hoy = () => new Date(new Date().toISOString().slice(0, 10));
+
+// Entrega un anuncio para un espacio de la app y cuenta la impresión. Si el
+// piloto no debe ver publicidad, o no hay anuncios vigentes, responde null.
+pilotoRouter.get('/anuncios', asyncHandler(async (req, res) => {
+  const lugar = String(req.query.lugar || '');
+  const deporte = String(req.query.deporte || '');
+  if (!veAnuncios(req.user) || !LUGARES.includes(lugar)) return res.json({ anuncio: null });
+  const d = hoy();
+  const lista = await prisma.anuncio.findMany({
+    where: {
+      activo: true,
+      lugares: { has: lugar },
+      AND: [
+        { OR: [{ desde: null }, { desde: { lte: d } }] },
+        { OR: [{ hasta: null }, { hasta: { gte: d } }] },
+      ],
+    },
+    select: { id: true, sponsor: true, titulo: true, texto: true, imagen: true, enlace: true, deportes: true, peso: true },
+  });
+  const ok = lista.filter((a) => !a.deportes.length || a.deportes.includes(deporte));
+  if (!ok.length) return res.json({ anuncio: null });
+  // Sorteo ponderado por peso.
+  let r = Math.random() * ok.reduce((t, a) => t + Math.max(1, a.peso), 0);
+  const a = ok.find((x) => (r -= Math.max(1, x.peso)) < 0) || ok[0];
+  await prisma.anuncio.update({ where: { id: a.id }, data: { impresiones: { increment: 1 } } });
+  const { deportes: _d, peso: _p, ...anuncio } = a;
+  res.json({ anuncio });
+}));
+
+pilotoRouter.post('/anuncios/:id/clic', asyncHandler(async (req, res) => {
+  await prisma.anuncio.updateMany({ where: { id: req.params.id }, data: { clics: { increment: 1 } } });
   res.json({ ok: true });
 }));
 

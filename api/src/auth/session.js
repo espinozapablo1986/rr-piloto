@@ -47,6 +47,9 @@ export const toPublicUser = (u) => ({
   cortesia: cortesiaVigente(u) ? u.cortesia : null,
   cortesiaHasta: cortesiaVigente(u) && u.cortesiaHasta ? u.cortesiaHasta.toISOString().slice(0, 10) : null,
   planEfectivo: planEfectivo(u),
+  // Las cuentas anteriores al multideporte eran de motociclismo de pista.
+  deportes: u.deportes?.length ? u.deportes : ['moto'],
+  anunciosPro: u.anunciosPro,
   consentimiento: u.consentimiento,
 });
 

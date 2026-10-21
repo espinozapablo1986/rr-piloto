@@ -14,3 +14,9 @@ export const planEfectivo = (u) => {
 };
 
 export const nivel = (u) => NIVEL[planEfectivo(u)];
+
+// Ids válidos de deporte (deben coincidir con DEPORTES en web/campos.js).
+export const DEPORTES = ['moto', 'mx', 'enduro', 'supermoto', 'karting', 'auto'];
+
+// Gratis y Plus ven publicidad; Pro solo si la activó.
+export const veAnuncios = (u) => nivel(u) < 2 || u.anunciosPro;

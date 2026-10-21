@@ -78,6 +78,22 @@ footer{max-width:780px;margin:0 auto;padding:0 16px 96px;text-align:center;color
 .bd{display:inline-block;padding:6px 10px;border:1px solid var(--bd);border-radius:20px;margin:0 6px 8px 0;font-size:13px;opacity:.45}
 .bd.on{opacity:1;border-color:var(--ok);color:var(--ok);font-weight:600}
 svg{width:100%;height:auto;display:block}
+svg.ic{display:inline-block;width:auto;flex:none;vertical-align:-3px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+nav button b{display:flex;justify-content:center;height:24px}
+.bd{display:inline-flex;align-items:center;gap:6px}
+.ttl{display:flex;align-items:center;gap:8px}
+.dsel{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+.dsel button{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:20px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.dsel button.on{background:var(--ac);border-color:var(--ac);color:var(--ac2)}
+.chk{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.chk label{display:inline-flex;align-items:center;gap:8px;margin:0;padding:8px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font-size:14px;cursor:pointer}
+.chk input{width:auto;margin:0}
+.ad{position:relative;display:block;background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin:0 0 14px;color:var(--tx);cursor:pointer}
+.ad img{display:block;width:100%;aspect-ratio:3/1;object-fit:cover;background:var(--bg)}
+.ad .adt{padding:10px 12px}.ad .adt b{display:block;font-size:15px}
+.ad .adl{position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;background:rgba(0,0,0,.6);color:#fff;padding:2px 7px;border-radius:6px}
+.ad .adt .adl{position:static;display:inline-block;margin-bottom:4px;background:var(--bg);color:var(--mu)}
 fieldset.lk{background:repeating-linear-gradient(-45deg,var(--card),var(--card) 12px,var(--bg) 12px,var(--bg) 24px)}
 fieldset.lk>*:not(legend){opacity:.45;pointer-events:none}
 .lkn{font-size:12px;font-weight:600;color:var(--mu)}
@@ -111,19 +127,32 @@ input[readonly],textarea[readonly]{opacity:.6}
 <header>
   <div style="display:flex;align-items:center;gap:10px"><img id="lg" alt="RR Piloto" style="height:46px;width:46px;border-radius:8px"><h1>RR <span>Piloto</span></h1></div>
   <div class="sub" id="sub">Rubus Racing · Beta</div>
+  <div class="dsel" id="dsel" aria-label="Deporte"></div>
   <nav id="nav"></nav>
 </header>
 <main id="v"></main>
 <div id="toast" role="status"></div>
 <footer>Desarrollado por Rubus Racing. Todos los derechos reservados.</footer>
+<script src="iconos.js"></script>
 <script src="campos.js"></script>
 <script>
 var KEY="rrficha1";
 function mig(d){d=d||{};var r={perfil:d.perfil||{},motos:d.motos||[],sesiones:d.sesiones||[]};
  if(!d.motos&&d.moto&&Object.keys(d.moto).length){d.moto.id="m"+Date.now();r.motos=[d.moto]}
  if(!d.sesiones&&d.tandas)r.sesiones=d.tandas.map(function(t){return{id:t.id,fecha:t.fecha,circuito:t.circuito,tipo:t.tipo,clima:t.clima,posicion:t.pos,ajustes:t.config,mejorar:t.mejorar,sensaciones:t.notas,entradas:[{minutos:t.minutos,vueltas:t.vueltas,mejor:t.mejor}]}});
- r.sesiones.forEach(function(s){(s.entradas||[]).forEach(function(e){["clima","posicion","trazado","sentido","obsPista","motoId","pinon","corona","neum","combustible","ajustes","sensaciones","nivel","mejorado","mejorar"].forEach(function(k){if(e[k]==null&&s[k]!=null)e[k]=s[k]})})});r.pistas=d.pistas||{};r.consent=d.consent||null;r.foto=d.foto||"";return r}
-var db=mig({}),ME=null,VER=0,LOCAL=null,MAT=null;
+ r.sesiones.forEach(function(s){(s.entradas||[]).forEach(function(e){["clima","posicion","trazado","sentido","obsPista","motoId","pinon","corona","neum","combustible","ajustes","sensaciones","nivel","mejorado","mejorar"].forEach(function(k){if(e[k]==null&&s[k]!=null)e[k]=s[k]})})});r.sesiones.forEach(function(s){if(!s.deporte)s.deporte="moto"});r.motos.forEach(function(m){if(!m.deporte)m.deporte="moto"});
+ r.pistas=d.pistas||{};r.consent=d.consent||null;r.foto=d.foto||"";return r}
+var db=mig({}),ME=null,VER=0,LOCAL=null,MAT=null,ACT="moto";
+/* DEPORTES: el piloto elige los suyos; la app muestra uno a la vez */
+function misDep(){return ME&&ME.deportes&&ME.deportes.length?ME.deportes:["moto"]}
+function setAct(d){ACT=misDep().indexOf(d)>=0?d:misDep()[0];try{localStorage.setItem("rrdep",ACT)}catch(e){}}
+function initAct(){var d="";try{d=localStorage.getItem("rrdep")||""}catch(e){}setAct(d||misDep()[0])}
+function vt(){return dep(ACT)[2]}
+function V(){return VEH[vt()]}
+// Sesiones del deporte activo, y vehículos del mismo tipo (moto, kart o auto).
+function SS(){return db.sesiones.filter(function(s){return s.deporte===ACT})}
+function MV(){return db.motos.filter(function(m){return dep(m.deporte)[2]===vt()})}
+function cambiarDep(d){setAct(d);editing=null;dc=null;curMoto=null;nav();render()}
 var $=function(s){return document.querySelector(s)};
 
 /* SERVIDOR: la ficha vive en la base de datos de Rubus Racing */
@@ -145,16 +174,16 @@ window.addEventListener("pagehide",function(){if(!save.t)return;clearTimeout(sav
 function localData(){try{var d=JSON.parse(localStorage.getItem(KEY)||"null");if(!d)return null;d=mig(d);return d.sesiones.length||d.motos.length||Object.keys(d.perfil).length?d:null}catch(e){return null}}
 
 /* PLANES (simulados durante la beta) */
-var PLANES=[["GRATIS","Gratis","$0",["Perfil y ficha de emergencia","Registro de tiempos en una pista","Imágenes para compartir con marca de agua"]],
- ["PLUS","Plus","$1 al mes",["Todo lo del plan Gratis","Pistas ilimitadas","Motos: piñón, catalina, neumáticos y ajustes","Trazado, sensaciones y rendimiento","Estadísticas e imágenes para compartir sin marca de agua"]],
- ["PRO","Pro","$5 al mes",["Todo lo del plan Plus","Descuentos en marcas","Material educativo y de capacitación"]]];
+var PLANES=[["GRATIS","Gratis","$0",["Perfil y ficha de emergencia","Registro de tiempos en una pista","Imágenes para compartir con marca de agua","Incluye anuncios de sponsors"]],
+ ["PLUS","Plus","$1 al mes",["Todo lo del plan Gratis","Pistas ilimitadas","Vehículos: piñón, catalina, neumáticos y ajustes","Trazado, sensaciones y rendimiento","Estadísticas e imágenes para compartir sin marca de agua","Incluye anuncios de sponsors"]],
+ ["PRO","Pro","$5 al mes",["Todo lo del plan Plus","Descuentos en marcas","Material educativo y de capacitación","Sin anuncios (puedes activarlos para apoyar la app)"]]];
 var NV={GRATIS:0,PLUS:1,PRO:2};
 function niv(){return ME?NV[ME.planEfectivo]||0:0}
 function pName(id){var p=PLANES.filter(function(x){return x[0]===id})[0];return p?p[1]:id}
 function planCards(sel,fn){return '<div class="pl">'+PLANES.map(function(p){return '<button type="button" class="pc'+(p[0]===sel?" on":"")+'" onclick="'+fn+'(\''+p[0]+'\')"><h3>'+p[1]+'</h3><div class="pr">'+p[2]+'</div><ul>'+p[3].map(function(x){return '<li>'+x+'</li>'}).join("")+'</ul></button>'}).join("")+'</div><p class="mu">Beta: los planes de pago son simulados. No se cobra nada.</p>'}
 // Bloque que exige un plan: si no alcanza, se muestra gris y sin edición.
-function L(n,title,inner){var ok=niv()>=n;return '<fieldset'+(ok?'':' disabled class="lk"')+'><legend>'+title+(ok?'':' <span class="lkn">🔒 Plan '+(n===2?"Pro":"Plus")+' · <button type="button" class="lnk" onclick="go(\'plan\')">Ver planes</button></span>')+'</legend>'+inner+'</fieldset>'}
-function lockCard(n,t,d){return '<div class="t"><h3>🔒 '+t+'</h3><p class="mu" style="margin:4px 0 10px">'+d+' Disponible desde el plan '+(n===2?"Pro ($5 al mes)":"Plus ($1 al mes)")+'.</p><button class="btn" onclick="go(\'plan\')">Ver planes</button></div>'}
+function L(n,title,inner){var ok=niv()>=n;return '<fieldset'+(ok?'':' disabled class="lk"')+'><legend>'+title+(ok?'':' <span class="lkn">'+ic("candado",13)+' Plan '+(n===2?"Pro":"Plus")+' · <button type="button" class="lnk" onclick="go(\'plan\')">Ver planes</button></span>')+'</legend>'+inner+'</fieldset>'}
+function lockCard(n,t,d){return '<div class="t"><h3 class="ttl">'+ic("candado",20)+t+'</h3><p class="mu" style="margin:4px 0 10px">'+d+' Disponible desde el plan '+(n===2?"Pro ($5 al mes)":"Plus ($1 al mes)")+'.</p><button class="btn" onclick="go(\'plan\')">Ver planes</button></div>'}
 /* APP INSTALABLE Y NOTIFICACIONES */
 var INST=null;
 function standalone(){return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}
@@ -165,13 +194,14 @@ window.addEventListener("appinstalled",function(){INST=null;toast("RR Piloto que
 function instalar(){if(INST){INST.prompt();INST.userChoice.then(function(){INST=null;render()});return}
  toast(iOS()?"En Safari toca Compartir (□↑) y luego «Agregar a inicio».":"Abre el menú del navegador y elige «Instalar aplicación».")}
 function instBox(){if(standalone()||(!INST&&!iOS()))return "";
- return '<div class="t"><b>📲 Instala RR Piloto en tu teléfono</b><div class="mu">Ábrela como una app, sin buscarla en el navegador.'+(iOS()&&!INST?' En Safari: Compartir (□↑) → «Agregar a inicio».':"")+'</div><div class="row" style="margin:8px 0 0"><button class="btn" onclick="instalar()">Instalar app</button></div></div>'}
+ return '<div class="t"><b class="ttl">'+ic("telefono")+'Instala RR Piloto en tu teléfono</b><div class="mu">Ábrela como una app, sin buscarla en el navegador.'+(iOS()&&!INST?' En Safari: Compartir (□↑) → «Agregar a inicio».':"")+'</div><div class="row" style="margin:8px 0 0"><button class="btn" onclick="instalar()">'+ic("descargar")+'Instalar app</button></div></div>'}
 function notifEstado(){if(!("Notification" in window)||!("serviceWorker" in navigator))return iOS()&&!standalone()?"ios":"no";return Notification.permission}
-function notifBox(){var s=notifEstado(),t={granted:"✅ Activadas en este dispositivo.",denied:"Bloqueadas. Actívalas desde los ajustes del navegador para este sitio.",ios:"En iPhone, primero instala la app en tu pantalla de inicio y ábrela desde ahí.",no:"Este navegador no permite notificaciones.","default":"Te avisaremos de novedades, eventos y recordatorios de Rubus Racing."}[s];
- return '<fieldset><legend>Notificaciones</legend><p class="mu" style="margin:0 0 10px">'+t+'</p>'+(s==="default"?'<button class="btn" onclick="notifOn()">🔔 Activar notificaciones</button>':s==="granted"?'<button class="btn s" onclick="notifTest()">Enviar notificación de prueba</button>':"")+'</fieldset>'}
+function notifBox(){var s=notifEstado(),t={granted:"Activadas en este dispositivo.",denied:"Bloqueadas. Actívalas desde los ajustes del navegador para este sitio.",ios:"En iPhone, primero instala la app en tu pantalla de inicio y ábrela desde ahí.",no:"Este navegador no permite notificaciones.","default":"Te avisaremos de novedades, eventos y recordatorios de Rubus Racing."}[s];
+ return '<fieldset><legend>Notificaciones</legend><p class="mu" style="margin:0 0 10px">'+t+'</p>'+(s==="default"?'<button class="btn" onclick="notifOn()">'+ic("campana")+'Activar notificaciones</button>':s==="granted"?'<button class="btn s" onclick="notifTest()">Enviar notificación de prueba</button>':"")+'</fieldset>'}
 function notifOn(){Notification.requestPermission().then(function(p){if(p==="granted")notifTest();render()})}
 function notifTest(){navigator.serviceWorker.ready.then(function(r){return r.showNotification("RR Piloto",{body:"Las notificaciones están activadas ✓",icon:"/icons/icon-192.png",badge:"/icons/icon-192.png"})}).catch(function(){toast("No se pudo mostrar la notificación.")})}
-function hdr(){if(!ME)return;$("#sub").innerHTML='Rubus Racing · Beta <button class="pill" onclick="go(\'plan\')">Plan '+esc(pName(ME.planEfectivo))+'</button>'}
+function hdr(){if(!ME)return;var D=misDep();$("#sub").innerHTML='Rubus Racing · Beta <button class="pill" onclick="go(\'plan\')">Plan '+esc(pName(ME.planEfectivo))+'</button>';
+ $("#dsel").innerHTML=D.length>1?D.map(function(d){var x=dep(d);return '<button class="'+(d===ACT?"on":"")+'" onclick="cambiarDep(\''+d+'\')">'+ic(x[2],16)+esc(x[1])+'</button>'}).join(""):'<button class="on" onclick="go(\'perfil\')">'+ic(vt(),16)+esc(dep(ACT)[1])+'</button>'}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function uid(){return String(Date.now())+Math.floor(Math.random()*999)}
 
@@ -196,16 +226,16 @@ function fmt(ms){if(ms==null)return "—";var m=Math.floor(ms/60000),s=((ms%6000
 function hm(m){m=Math.round(m||0);var h=Math.floor(m/60);return h?h+" h "+(m%60)+" min":m+" min"}
 function nk(c){return String(c||"").trim().toLowerCase()}
 function sTot(s){var m=0,v=0,b=null;(s.entradas||[]).forEach(function(e){m+=+e.minutos||0;v+=+e.vueltas||0;var x=toMs(e.mejor);if(x&&(b==null||x<b))b=x});return{m:m,v:v,b:b}}
-function cStats(c,ex){var r={n:0,m:0,e:0,b:null,bf:""};if(!nk(c))return r;db.sesiones.forEach(function(s){if(s.id===ex||nk(s.circuito)!==nk(c))return;var t=sTot(s);r.n++;r.m+=t.m;r.e+=(s.entradas||[]).length;if(t.b&&(r.b==null||t.b<r.b)){r.b=t.b;r.bf=s.fecha}});return r}
-function mName(m){return m.apodo||((m.marca||"")+" "+(m.modelo||"")).trim()||"Moto sin nombre"}
-function groups(){var g={},o=[];db.sesiones.forEach(function(s){var k=nk(s.circuito);if(!k)return;if(!g[k]){g[k]={k:k,n:s.circuito,s:[]};o.push(g[k])}g[k].s.push(s)});
+function cStats(c,ex){var r={n:0,m:0,e:0,b:null,bf:""};if(!nk(c))return r;SS().forEach(function(s){if(s.id===ex||nk(s.circuito)!==nk(c))return;var t=sTot(s);r.n++;r.m+=t.m;r.e+=(s.entradas||[]).length;if(t.b&&(r.b==null||t.b<r.b)){r.b=t.b;r.bf=s.fecha}});return r}
+function mName(m){return m.apodo||((m.marca||"")+" "+(m.modelo||"")).trim()||VEH[dep(m.deporte)[2]]+" sin nombre"}
+function groups(){var g={},o=[];SS().forEach(function(s){var k=nk(s.circuito);if(!k)return;if(!g[k]){g[k]={k:k,n:s.circuito,s:[]};o.push(g[k])}g[k].s.push(s)});
  o.forEach(function(x){x.s.sort(function(a,b){return (a.fecha||"").localeCompare(b.fecha||"")});x.m=0;x.e=0;x.b=null;x.bf="";x.s.forEach(function(s){var t=sTot(s);x.m+=t.m;x.e+=(s.entradas||[]).length;if(t.b&&(x.b==null||t.b<x.b)){x.b=t.b;x.bf=s.fecha}})});
  o.sort(function(a,b){return b.m-a.m});return o}
 
-var tabs=[["inicio","🏠","Inicio"],["perfil","👤","Piloto"],["moto","🏍️","Moto"],["ses","🏁","Sesiones"],["datos","📊","Datos"],["mat","🎓","Material"]],cur="inicio",flash="",editing=null,curMoto=null,dc=null,pend=null;
-function nav(){$("#nav").innerHTML=tabs.map(function(t){return '<button class="'+(t[0]===cur?"on":"")+'" onclick="go(\''+t[0]+'\')"><b>'+t[1]+'</b>'+t[2]+'</button>'}).join("")}
+var tabs=[["inicio","inicio","Inicio"],["perfil","piloto","Piloto"],["moto","",""],["ses","sesiones","Sesiones"],["datos","datos","Datos"],["mat","material","Material"]],cur="inicio",flash="",editing=null,curMoto=null,dc=null,pend=null;
+function nav(){$("#nav").innerHTML=tabs.map(function(t){var v=t[0]==="moto";return '<button class="'+(t[0]===cur?"on":"")+'" onclick="go(\''+t[0]+'\')"><b>'+ic(v?vt():t[1],22)+'</b>'+(v?V():t[2])+'</button>'}).join("")}
 function go(t){cur=t;editing=null;pend=null;nav();render();window.scrollTo(0,0)}
-function render(){hdr();if(cur==="inicio")inicio();else if(cur==="perfil")perfil();else if(cur==="moto")moto();else if(cur==="ses")ses();else if(cur==="mat")mat();else if(cur==="plan")planView();else datos()}
+function render(){hdr();setTimeout(fillAds,0);if(cur==="inicio")inicio();else if(cur==="perfil")perfil();else if(cur==="moto")moto();else if(cur==="ses")ses();else if(cur==="mat")mat();else if(cur==="plan")planView();else datos()}
 
 var TC=[
 "<p><b>1. Responsable.</b> Rubus Racing (rubusracing.cl) es la responsable de esta aplicación y del tratamiento de tus datos.</p>",
@@ -226,16 +256,16 @@ function boot(){hd(0);$("#v").innerHTML='<p class="mu" style="text-align:center;
  api("GET","/api/auth/me").then(function(r){ME=r.user;
   if(ME.rol==="ADMIN"){location.href="/admin";return}
   if(ME.estado!=="APROBADO"){gate("espera");return}
-  return api("GET","/api/ficha").then(function(f){db=mig(f.datos);VER=f.version;LOCAL=localData();hd(1);nav();render();window.scrollTo(0,0)})})
+  return api("GET","/api/ficha").then(function(f){db=mig(f.datos);VER=f.version;LOCAL=localData();initAct();hd(1);nav();render();window.scrollTo(0,0)})})
  .catch(function(e){if(e.status===401){ME=null;gate("portada")}else gate("error",e.message)})}
 function logout(){api("POST","/api/auth/logout").catch(function(){}).then(function(){ME=null;db=mig({});VER=0;MAT=null;cur="inicio";gate("portada")})}
 function gate(s,ro){window.scrollTo(0,0);hd(0);var v=$("#v");
  if(s==="portada"){v.innerHTML='<div style="text-align:center;padding:36px 8px 20px"><img src="'+LOGO+'" alt="RR Piloto" style="width:170px;height:170px;border-radius:18px"><h1 style="font-size:32px;margin:20px 0 6px">RR <span>Piloto</span></h1><div style="font-size:21px;font-weight:800;letter-spacing:.5px">Rubus Racing</div><p class="mu" style="font-size:16px;margin:4px 0 28px">Preparando los pilotos del futuro</p><div class="row" style="justify-content:center"><button class="btn" style="font-size:17px;padding:14px 32px" onclick="gate(\'terms\')">Crear mi cuenta</button><button class="btn s" style="font-size:17px;padding:14px 24px" onclick="gate(\'login\')">Ya tengo cuenta</button></div><p class="mu" style="margin-top:22px">Fase beta · las cuentas nuevas se aprueban manualmente</p></div>';return}
  if(s==="login"){v.innerHTML='<div class="auth"><h2 style="margin:8px 0 12px">Iniciar sesión</h2><form id="lf"><fieldset><legend>Tu cuenta</legend><label>Correo electrónico<input type="email" name="email" autocomplete="username" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label></fieldset><div class="row"><button class="btn" type="submit">Entrar</button><button class="btn s" type="button" onclick="gate(\'portada\')">Volver</button></div><div class="ok" id="lm" style="color:var(--ac)"></div></form><p class="mu">¿No tienes cuenta? <button class="lnk" onclick="gate(\'terms\')">Créala aquí</button></p></div>';
   $("#lf").onsubmit=function(e){e.preventDefault();var o=read(e.target);$("#lm").textContent="Entrando…";api("POST","/api/auth/login",o).then(function(){cur="inicio";boot()}).catch(function(x){$("#lm").textContent=x.message})};return}
- if(s==="registro"){v.innerHTML='<div class="auth" style="max-width:780px"><h2 style="margin:8px 0 12px">Crea tu cuenta</h2><form id="rf"><fieldset><legend>Tus datos</legend><div class="g"><label class="full">Nombre completo<input name="nombre" autocomplete="name" required></label><label>Correo electrónico<input type="email" name="email" autocomplete="email" required></label><label>Contraseña (mínimo 8 caracteres)<input type="password" name="password" autocomplete="new-password" minlength="8" required></label><label>Repite la contraseña<input type="password" name="password2" autocomplete="new-password" required></label></div></fieldset><fieldset><legend>Elige tu plan</legend><div id="rp">'+planCards(PSEL,"pickPlan")+'</div></fieldset><div class="row"><button class="btn" type="submit">Crear cuenta</button><button class="btn s" type="button" onclick="gate(\'portada\')">Cancelar</button></div><div class="ok" id="rm" style="color:var(--ac)"></div></form></div>';
-  $("#rf").onsubmit=function(e){e.preventDefault();var o=read(e.target);if(o.password!==o.password2){$("#rm").textContent="Las contraseñas no coinciden.";return}
-   $("#rm").textContent="Creando tu cuenta…";api("POST","/api/auth/registro",{nombre:o.nombre,email:o.email,password:o.password,plan:PSEL,consentimiento:REG}).then(function(r){ME=r.user;REG=null;cur="perfil";gate("espera")}).catch(function(x){$("#rm").textContent=x.message})};return}
+ if(s==="registro"){v.innerHTML='<div class="auth" style="max-width:780px"><h2 style="margin:8px 0 12px">Crea tu cuenta</h2><form id="rf"><fieldset><legend>Tus datos</legend><div class="g"><label class="full">Nombre completo<input name="nombre" autocomplete="name" required></label><label>Correo electrónico<input type="email" name="email" autocomplete="email" required></label><label>Contraseña (mínimo 8 caracteres)<input type="password" name="password" autocomplete="new-password" minlength="8" required></label><label>Repite la contraseña<input type="password" name="password2" autocomplete="new-password" required></label></div></fieldset><fieldset><legend>¿Qué deportes practicas?</legend><p class="mu" style="margin:0 0 10px">Elige uno o más. Podrás cambiarlos después en tu perfil.</p>'+depChk(["moto"])+'</fieldset><fieldset><legend>Elige tu plan</legend><div id="rp">'+planCards(PSEL,"pickPlan")+'</div></fieldset><div class="row"><button class="btn" type="submit">Crear cuenta</button><button class="btn s" type="button" onclick="gate(\'portada\')">Cancelar</button></div><div class="ok" id="rm" style="color:var(--ac)"></div></form></div>';
+  $("#rf").onsubmit=function(e){e.preventDefault();var o=read(e.target);if(o.password!==o.password2){$("#rm").textContent="Las contraseñas no coinciden.";return}var dps=depSel(e.target);if(!dps.length){$("#rm").textContent="Elige al menos un deporte.";return}
+   $("#rm").textContent="Creando tu cuenta…";api("POST","/api/auth/registro",{nombre:o.nombre,email:o.email,password:o.password,plan:PSEL,deportes:dps,consentimiento:REG}).then(function(r){ME=r.user;REG=null;cur="perfil";gate("espera")}).catch(function(x){$("#rm").textContent=x.message})};return}
  if(s==="espera"){v.innerHTML='<div class="auth" style="text-align:center;padding-top:30px"><img src="'+LOGO+'" alt="" style="width:110px;height:110px;border-radius:14px"><h2>Tu cuenta está en revisión</h2><p>Gracias por registrarte'+(ME?', <b>'+esc(ME.email)+'</b>':"")+'. RR Piloto está en fase beta y Rubus Racing aprueba cada cuenta antes de habilitarla.</p><p class="mu">Plan elegido: '+esc(pName(ME&&ME.plan))+'. Vuelve a entrar más tarde.</p><div class="row" style="justify-content:center"><button class="btn" onclick="boot()">Volver a comprobar</button><button class="btn s" onclick="logout()">Cerrar sesión</button></div></div>';return}
  if(s==="error"){v.innerHTML='<div class="auth" style="text-align:center;padding-top:30px"><h2>No pudimos cargar RR Piloto</h2><p class="mu">'+esc(ro)+'</p><button class="btn" onclick="boot()">Reintentar</button></div>';return}
  var f=ro?'<div class="row"><button class="btn" onclick="hd(1);go(\'datos\')">Volver</button></div>':
@@ -251,32 +281,34 @@ function acepto(){var m=$("#ckm").checked,tn=$("#tn").value.trim(),tr=$("#tr").v
  if(!$("#ck1").checked||!$("#ck2").checked){$("#tm").textContent="Debes aceptar las dos casillas obligatorias.";return}
  if(m&&(!tn||!tr)){$("#tm").textContent="Indica nombre y RUT del apoderado.";return}
  REG={terminos:true,salud:true,mailing:$("#ck3").checked,menor:m,tutor:tn,tutorRut:tr,version:TCV};gate("registro")}
+function depChk(sel){return '<div class="chk">'+DEPORTES.map(function(d){return '<label><input type="checkbox" data-dep="'+d[0]+'"'+(sel.indexOf(d[0])>=0?" checked":"")+'>'+ic(d[2],18)+esc(d[1])+'</label>'}).join("")+'</div>'}
+function depSel(root){return [].slice.call(root.querySelectorAll("[data-dep]:checked")).map(function(i){return i.dataset.dep})}
 function pickPlan(p){PSEL=p;$("#rp").innerHTML=planCards(PSEL,"pickPlan")}
 function wipe(){var b=$("#wipe");if(pend==="w"){pend=null;b.textContent="Borrando…";api("DELETE","/api/cuenta").then(function(){try{localStorage.removeItem(KEY)}catch(e){}ME=null;db=mig({});VER=0;cur="inicio";gate("portada");toast("Tu cuenta y tus datos fueron eliminados.")}).catch(function(e){b.textContent="Borrar mi cuenta y mis datos";toast(e.message)})}else{pend="w";b.textContent="¿Seguro? Se borra tu cuenta y todo. Toca de nuevo"}}
 
 function fixRut(s){var c=String(s).replace(/[^0-9kK]/g,"").toUpperCase();if(c.length<2)return{v:s,ok:!s};var b=c.slice(0,-1),d=c.slice(-1),sum=0,m=2;for(var i=b.length-1;i>=0;i--){sum+=(+b[i])*m;m=m===7?2:m+1}var r=11-sum%11,dv=r===11?"0":r===10?"K":String(r);return{v:b.replace(/\B(?=(\d{3})+(?!\d))/g,".")+"-"+d,ok:dv===d}}
 function av(sz){return '<img class="av" style="width:'+sz+'px;height:'+sz+'px" src="'+(db.foto||LOGO)+'" alt="">'}
 function pct(){var k=["nombre","rut","telefono","correo","emNombre","emTel","prevision"],p=db.perfil||{},n=0;k.forEach(function(x){if(p[x])n++});return Math.round(n*100/k.length)}
-function fotoBox(){return '<div class="hero">'+av(88)+'<div><div class="row" style="margin:0">'+fileBtn("📷 Tomar foto","pickFoto(this)","user")+fileBtn("🖼️ Elegir foto","pickFoto(this)")+'</div><div class="mu" style="margin-top:6px">Puedes recortarla y ajustarla. Aparece en tus imágenes para compartir.</div></div></div>'}
+function fotoBox(){return '<div class="hero">'+av(88)+'<div><div class="row" style="margin:0">'+fileBtn(ic("camara")+"Tomar foto","pickFoto(this)","user")+fileBtn(ic("imagen")+"Elegir foto","pickFoto(this)")+'</div><div class="mu" style="margin-top:6px">Puedes recortarla y ajustarla. Aparece en tus imágenes para compartir.</div></div></div>'}
 // Botón que abre la cámara (capture) o la galería del teléfono.
 function fileBtn(t,fn,cap){return '<label class="btn s" style="margin:0">'+t+'<input type="file" accept="image/*"'+(cap?' capture="'+cap+'"':"")+' style="display:none" onchange="'+fn+'"></label>'}
 // Foto de perfil: cuadrada, 480 px y JPEG al 80 % (unos 40 KB).
 function pickFoto(inp){leer(inp,function(i){recortar(i,{w:480,h:480,round:1,q:.8,titulo:"Ajusta tu foto"},function(u){db.foto=u;save();document.querySelectorAll(".hero .av").forEach(function(a){a.src=u});toast("Foto actualizada ✓")})})}
-function inicio(){var G=groups(),S=db.sesiones,tm=0,tv=0,imp=false,p=pct(),nom=(db.perfil.nombre||"").trim().split(" ")[0]||"piloto";
+function inicio(){var G=groups(),S=SS(),tm=0,tv=0,imp=false,p=pct(),nom=(db.perfil.nombre||"").trim().split(" ")[0]||"piloto";
  S.forEach(function(s){var t=sTot(s);tm+=t.m;tv+=t.v});
  G.forEach(function(g){var rm=null;g.s.forEach(function(s){var b=sTot(s).b;if(b){if(rm!=null&&b<rm)imp=true;if(rm==null||b<rm)rm=b}})});
- var h='<div class="hero">'+av(72)+'<div><h2 style="margin:0;font-size:22px">¡Hola, '+esc(nom)+'! 👋</h2><div class="mu">'+(S.length?"Cada sesión te deja más rápido.":"Registra tu primera sesión y empieza a ver tu progreso.")+'</div></div></div>';
- h+=instBox();
- if(LOCAL)h+='<div class="t" style="border-color:var(--ok)"><b>📲 Encontramos datos en este dispositivo</b><div class="mu">'+LOCAL.sesiones.length+' sesión(es) y '+LOCAL.motos.length+' moto(s) guardadas antes de crear tu cuenta. Súbelas para tenerlas en cualquier dispositivo.</div><div class="row" style="margin:8px 0 0"><button class="btn add" id="impb" onclick="impLocal()">Subir a mi cuenta</button><button class="btn s" onclick="dropLocal()">Descartar</button></div></div>';
- if(p<100)h+='<div class="t"><b>Ficha de emergencia: '+p+'%</b><div class="bar" style="width:'+Math.max(p,3)+'%;height:8px;margin-top:6px"></div><div class="mu">Complétala: es tu respaldo si ocurre algo en pista.</div><div class="row" style="margin:8px 0 0"><button class="btn s" onclick="go(\'perfil\')">Completar ahora</button></div></div>';
+ var h='<div class="hero">'+av(72)+'<div><h2 style="margin:0;font-size:22px">¡Hola, '+esc(nom)+'!</h2><div class="mu">'+(S.length?"Cada sesión te deja más rápido.":"Registra tu primera sesión y empieza a ver tu progreso.")+'</div></div></div>';
+ h+=instBox()+adSlot("INICIO");
+ if(LOCAL)h+='<div class="t" style="border-color:var(--ok)"><b class="ttl">'+ic("subir")+'Encontramos datos en este dispositivo</b><div class="mu">'+LOCAL.sesiones.length+' sesión(es) y '+LOCAL.motos.length+' moto(s) guardadas antes de crear tu cuenta. Súbelas para tenerlas en cualquier dispositivo.</div><div class="row" style="margin:8px 0 0"><button class="btn add" id="impb" onclick="impLocal()">Subir a mi cuenta</button><button class="btn s" onclick="dropLocal()">Descartar</button></div></div>';
+ if(p<100)h+='<div class="t"><b class="ttl">'+ic("escudo")+'Ficha de emergencia: '+p+'%</b><div class="bar" style="width:'+Math.max(p,3)+'%;height:8px;margin-top:6px"></div><div class="mu">Complétala: es tu respaldo si ocurre algo en pista.</div><div class="row" style="margin:8px 0 0"><button class="btn s" onclick="go(\'perfil\')">Completar ahora</button></div></div>';
  h+='<div class="stats"><div class="st"><b>'+hm(tm)+'</b><small>En pista</small></div><div class="st"><b>'+S.length+'</b><small>Sesiones</small></div><div class="st"><b>'+G.length+'</b><small>Pistas</small></div><div class="st"><b>'+tv+'</b><small>Vueltas</small></div></div>';
  if(S.length){var T=S.slice().sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"")||b.id.localeCompare(a.id)}),s=T[0],g=G.filter(function(x){return x.k===nk(s.circuito)})[0],ix=g.s.indexOf(s),pb=null,t=sTot(s);
   g.s.slice(0,ix).forEach(function(q){var b=sTot(q).b;if(b&&(pb==null||b<pb))pb=b});
-  var msg=!t.b?"Anota tu mejor vuelta para ver tu avance.":pb==null?"🎉 Primera marca en esta pista: "+fmt(t.b):t.b<pb?'<span class="best">🔥 '+((pb-t.b)/1000).toFixed(3)+' s más rápido que tu marca anterior</span>':"+"+((t.b-pb)/1000).toFixed(3)+" s de tu mejor marca. ¡A por ella!";
+  var msg=!t.b?"Anota tu mejor vuelta para ver tu avance.":pb==null?ic("sesiones",16)+" Primera marca en esta pista: "+fmt(t.b):t.b<pb?'<span class="best">'+ic("llama",16)+' '+((pb-t.b)/1000).toFixed(3)+' s más rápido que tu marca anterior</span>':"+"+((t.b-pb)/1000).toFixed(3)+" s de tu mejor marca. ¡A por ella!";
   h+='<fieldset><legend>Tu último avance</legend><div><b>'+esc(s.circuito)+'</b> · '+esc(s.fecha)+'</div><div>'+msg+'</div><div class="mu" style="margin-bottom:10px">Mejor vuelta: '+fmt(t.b)+' · '+hm(t.m)+' en pista</div></fieldset>'}
- h+='<div class="row"><button class="btn add" onclick="go(\'ses\');editing=\'new\';ses()">+ Nueva sesión</button>'+(S.length?'<button class="btn" onclick="shareStats()">📸 Compartir mis números</button>':"")+'</div>';
- var bd=[["🏁","Primera sesión",S.length>=1],["🔟","10 sesiones",S.length>=10],["⏱️","1 hora en pista",tm>=60],["🔥","10 horas en pista",tm>=600],["🗺️","3 pistas distintas",G.length>=3],["🏆","Debut en competencia",S.some(function(s){return /Carrera|Campeonato/.test(s.tipo)})],["📈","Mejoraste tu marca",imp],["🛟","Ficha completa",p===100]];
- h+='<fieldset><legend>Logros ('+bd.filter(function(b){return b[2]}).length+'/'+bd.length+')</legend>'+bd.map(function(b){return '<span class="bd'+(b[2]?" on":"")+'">'+b[0]+" "+b[1]+'</span>'}).join("")+'</fieldset>';
+ h+='<div class="row"><button class="btn add" onclick="go(\'ses\');editing=\'new\';ses()">'+ic("mas")+'Nueva sesión</button>'+(S.length?'<button class="btn" onclick="shareStats()">'+ic("compartir")+'Compartir mis números</button>':"")+'</div>';
+ var bd=[["sesiones","Primera sesión",S.length>=1],["estrella","10 sesiones",S.length>=10],["reloj","1 hora en pista",tm>=60],["llama","10 horas en pista",tm>=600],["mapa","3 pistas distintas",G.length>=3],["trofeo","Debut en competencia",S.some(function(s){return /Carrera|Campeonato/.test(s.tipo)})],["subida","Mejoraste tu marca",imp],["escudo","Ficha completa",p===100]];
+ h+='<fieldset><legend>Logros ('+bd.filter(function(b){return b[2]}).length+'/'+bd.length+')</legend>'+bd.map(function(b){return '<span class="bd'+(b[2]?" on":"")+'">'+ic(b[0],15)+b[1]+'</span>'}).join("")+'</fieldset>';
  $("#v").innerHTML=h}
 function impLocal(){var L0=LOCAL,b=$("#impb");b.textContent="Subiendo…";b.disabled=true;
  var d={perfil:Object.assign({},L0.perfil,db.perfil.rut?db.perfil:{}),motos:L0.motos,sesiones:L0.sesiones,pistas:L0.pistas,foto:L0.foto||db.foto};
@@ -285,38 +317,41 @@ function impLocal(){var L0=LOCAL,b=$("#impb");b.textContent="Subiendo…";b.disa
  .catch(function(e){b.textContent="Subir a mi cuenta";b.disabled=false;toast(e.status===403?"Tus datos incluyen más de una pista: elige el plan Plus para subirlos.":e.message)})}
 function dropLocal(){try{localStorage.removeItem(KEY)}catch(e){}LOCAL=null;render()}
 
-function perfil(){$("#v").innerHTML=fotoBox()+'<form id="f">'+sections(PERFIL,db.perfil)+'<div class="row"><button class="btn" type="submit">Guardar</button><span class="ok" id="ok"></span></div></form>';
+function perfil(){$("#v").innerHTML=fotoBox()+'<fieldset id="mdep"><legend>Mis deportes</legend>'+depChk(misDep())+'<div class="row" style="margin:0"><button class="btn s" onclick="saveDep()">'+ic("ok")+'Guardar deportes</button><span class="ok" id="dok"></span></div></fieldset><form id="f">'+sections(PERFIL,db.perfil)+'<div class="row"><button class="btn" type="submit">Guardar</button><span class="ok" id="ok"></span></div></form>';
  var rt=$("#f").elements.rut;rt.onchange=function(){var r=fixRut(this.value);this.value=r.v;this.style.borderColor=r.ok?"":"var(--ac)"};
  ocultar($("#f"));$("#f").onchange=function(){ocultar(this)};
  $("#f").onsubmit=function(e){e.preventDefault();db.perfil=read(e.target);Object.keys(OCULTO).forEach(function(k){if(OCULTO[k](db.perfil))db.perfil[k]=""});var r=fixRut(db.perfil.rut||"");if(db.perfil.rut)db.perfil.rut=r.v;save();$("#ok").textContent=db.perfil.rut&&!r.ok?"Guardado ✓ · revisa tu RUT":"Guardado ✓"}}
 
-/* MOTOS */
-function moto(){if(niv()<1){$("#v").innerHTML=lockCard(1,"Ficha técnica de tus motos","Registra marca, modelo, piñón, catalina, suspensión, neumáticos y frenos de cada moto, y elígela en cada entrada a pista.")+'<fieldset disabled class="lk"><legend>Vista previa</legend>'+sections(MOTO,db.motos[0]||{})+'</fieldset>';return}
- if(!db.motos.length){db.motos.push({id:uid()});save()}
- var m=db.motos.filter(function(x){return x.id===curMoto})[0]||db.motos[0];curMoto=m.id;
- $("#v").innerHTML='<div class="row">'+db.motos.map(function(x){return '<button class="btn '+(x.id===m.id?"":"s")+'" onclick="curMoto=\''+x.id+'\';moto()">'+esc(mName(x))+'</button>'}).join("")+'<button class="btn add" onclick="addMoto()">+ Agregar moto</button></div>'
- +'<div class="ph"><img id="mf" alt="" src="'+(m.foto||LOGO)+'"><div><div class="row">'+fileBtn("📷 Tomar foto","pickMoto(this)","environment")+fileBtn("🖼️ Elegir foto","pickMoto(this)")+(m.foto?'<button class="btn s" onclick="sinFotoMoto()">Quitar foto</button>':"")+'</div><div class="mu" style="margin-top:6px">Foto de tu moto: puedes recortarla y ajustarla.</div></div></div>'
- +'<form id="f">'+sections(MOTO,m)+'<div class="row"><button class="btn" type="submit">Guardar moto</button><button class="btn s" type="button" id="dm" onclick="delMoto()">Eliminar moto</button><span class="ok" id="ok"></span></div></form>';
- $("#f").onsubmit=function(e){e.preventDefault();var o=read(e.target);o.id=m.id;if(m.foto)o.foto=m.foto;db.motos[db.motos.indexOf(m)]=o;save();moto();$("#ok").textContent="Guardado ✓"}}
+function saveDep(){var d=depSel($("#mdep"));if(!d.length){$("#dok").textContent="Elige al menos uno.";return}
+ api("PUT","/api/cuenta/deportes",{deportes:d}).then(function(r){ME=r.user;setAct(ACT);nav();hdr();$("#dok").textContent="Guardado ✓"}).catch(function(e){toast(e.message)})}
+
+/* VEHÍCULOS (motos, karts o autos según el deporte activo) */
+function moto(){var M=MV();if(niv()<1){$("#v").innerHTML=lockCard(1,"Ficha técnica de tus vehículos","Registra marca, modelo, piñón, catalina, suspensión, neumáticos y frenos de cada "+V().toLowerCase()+", y elígelo en cada entrada a pista.")+'<fieldset disabled class="lk"><legend>Vista previa</legend>'+sections(MOTO,M[0]||{})+'</fieldset>';return}
+ if(!M.length){M=[{id:uid(),deporte:ACT}];db.motos.push(M[0]);save()}
+ var m=M.filter(function(x){return x.id===curMoto})[0]||M[0];curMoto=m.id;
+ $("#v").innerHTML='<div class="row">'+M.map(function(x){return '<button class="btn '+(x.id===m.id?"":"s")+'" onclick="curMoto=\''+x.id+'\';moto()">'+esc(mName(x))+'</button>'}).join("")+'<button class="btn add" onclick="addMoto()">'+ic("mas")+'Agregar '+V().toLowerCase()+'</button></div>'
+ +'<div class="ph"><img id="mf" alt="" src="'+(m.foto||LOGO)+'"><div><div class="row">'+fileBtn(ic("camara")+"Tomar foto","pickMoto(this)","environment")+fileBtn(ic("imagen")+"Elegir foto","pickMoto(this)")+(m.foto?'<button class="btn s" onclick="sinFotoMoto()">Quitar foto</button>':"")+'</div><div class="mu" style="margin-top:6px">Foto de tu '+V().toLowerCase()+': puedes recortarla y ajustarla.</div></div></div>'
+ +'<form id="f">'+sections(MOTO,m)+'<div class="row"><button class="btn" type="submit">Guardar '+V().toLowerCase()+'</button><button class="btn s" type="button" id="dm" onclick="delMoto()">Eliminar '+V().toLowerCase()+'</button><span class="ok" id="ok"></span></div></form>';
+ $("#f").onsubmit=function(e){e.preventDefault();var o=read(e.target);o.id=m.id;o.deporte=m.deporte||ACT;if(m.foto)o.foto=m.foto;db.motos[db.motos.indexOf(m)]=o;save();moto();$("#ok").textContent="Guardado ✓"}}
 function curM(){return db.motos.filter(function(x){return x.id===curMoto})[0]}
 // Foto de la moto: 4:3, 960 × 720 px y JPEG al 75 % (unos 100 KB).
-function pickMoto(inp){leer(inp,function(i){recortar(i,{w:960,h:720,q:.75,titulo:"Ajusta la foto de tu moto"},function(u){var m=curM();if(!m)return;m.foto=u;save();$("#mf").src=u;toast("Foto de la moto guardada ✓")})})}
+function pickMoto(inp){leer(inp,function(i){recortar(i,{w:960,h:720,q:.75,titulo:"Ajusta la foto de tu "+V().toLowerCase()},function(u){var m=curM();if(!m)return;m.foto=u;save();$("#mf").src=u;toast("Foto guardada ✓")})})}
 function sinFotoMoto(){var m=curM();if(!m)return;delete m.foto;save();moto()}
-function addMoto(){var m={id:uid()};db.motos.push(m);curMoto=m.id;save();moto()}
+function addMoto(){var m={id:uid(),deporte:ACT};db.motos.push(m);curMoto=m.id;save();moto()}
 function delMoto(){var b=$("#dm");if(pend==="m"){db.motos=db.motos.filter(function(x){return x.id!==curMoto});curMoto=null;pend=null;save();moto()}else{pend="m";b.textContent="¿Seguro? Toca de nuevo"}}
 
 /* SESIONES */
 var KEEP=["motoId","pinon","corona","neum","combustible","clima","trazado","sentido"],NOE=["motoId","pinon","corona","neum","combustible"];
 function enRow(e){e=e||{};function F(f){return field(f,e).replace(/ name="/g,' data-k="')}
- var ms='<label>Moto utilizada<select data-k="motoId" onchange="motoSel(this)"><option value="">— Elegir moto —</option>'+db.motos.map(function(m){return '<option value="'+m.id+'"'+(e.motoId===m.id?" selected":"")+'>'+esc(mName(m))+'</option>'}).join("")+'</select></label>';
+ var ms='<label>'+V()+' utilizado<select data-k="motoId" onchange="motoSel(this)"><option value="">— Elegir '+V().toLowerCase()+' —</option>'+MV().map(function(m){return '<option value="'+m.id+'"'+(e.motoId===m.id?" selected":"")+'>'+esc(mName(m))+'</option>'}).join("")+'</select></label>';
  return '<details class="en" open><summary></summary>'
  +'<fieldset><legend>1) Tiempos de la entrada</legend><div class="g">'+F(["minutos","Tiempo en pista (min)","number"])+F(["vueltas","Vueltas","number"])+F(["mejor","Mejor vuelta (m:ss.mmm)"])+F(["clima","Clima",["","Seco","Nublado","Húmedo","Lluvia"]])+F(["posicion","Posición (si aplica)","number"])+'</div></fieldset>'
  +L(1,"2) Trazado y pista",'<div class="g">'+F(["trazado","Trazado utilizado"])+F(["sentido","Sentido de giro",["","Horario","Antihorario"]])+F(["obsPista","Observaciones de pista (estado, agarre, temperatura…)","textarea","full"])+'</div>')
- +L(1,"3) Moto",'<div class="g">'+ms+F(["pinon","Piñón","number"])+F(["corona","Catalina / corona","number"])+F(["neum","Neumáticos (marca, compuesto, presiones)"])+F(["combustible","Combustible"])+F(["ajustes","Otros ajustes","textarea","full"])+'</div>')
- +L(1,"4) Sensaciones del piloto",'<div class="g">'+F(["sensaciones","Cómo te sentiste (moto, pista, físico, confianza)","textarea","full"])+'</div>')
+ +L(1,"3) "+V(),'<div class="g">'+ms+F(["pinon","Piñón","number"])+F(["corona","Catalina / corona","number"])+F(["neum","Neumáticos (marca, compuesto, presiones)"])+F(["combustible","Combustible"])+F(["ajustes","Otros ajustes","textarea","full"])+'</div>')
+ +L(1,"4) Sensaciones del piloto",'<div class="g">'+F(["sensaciones","Cómo te sentiste ("+V().toLowerCase()+", pista, físico, confianza)","textarea","full"])+'</div>')
  +L(1,"5) Rendimiento del piloto",'<div class="g">'+F(["nivel","Autoevaluación",["","1 · Bajo","2","3 · Normal","4","5 · Excelente"]])+F(["mejorado","Aspectos mejorados","textarea","full"])+F(["mejorar","Aspectos a mejorar","textarea","full"])+'</div>')
  +L(1,"6) Estadísticas en este circuito",'<div class="cs"></div>')
- +'<div class="row">'+'<button type="button" class="btn" onclick="share(this)">📸 Compartir imagen</button>'+'<button type="button" class="btn s" onclick="this.closest(\'.en\').remove();upCS()">Quitar entrada</button></div></details>'}
+ +'<div class="row">'+'<button type="button" class="btn" onclick="share(this)">'+ic("compartir")+'Compartir imagen</button>'+'<button type="button" class="btn s" onclick="this.closest(\'.en\').remove();upCS()">Quitar entrada</button></div></details>'}
 // La única pista del plan Gratis: la de la sesión más antigua (igual que el servidor).
 function pistaG(){var s=db.sesiones.slice().sort(function(a,b){return String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.id).localeCompare(String(b.id))})[0];return s?s.circuito:null}
 function eVals(el){var o={};el.querySelectorAll("[data-k]").forEach(function(i){o[i.dataset.k]=i.value});return o}
@@ -336,18 +371,18 @@ function ses(){var v=$("#v");
   v.innerHTML='<form id="f" oninput="dq()"><datalist id="circs">'+cl+'</datalist>'
   +'<fieldset><legend>Datos de la sesión</legend><div class="g">'+field(["fecha","Fecha","date"],e)+'<label>Circuito<input name="circuito" list="circs" value="'+esc(ci)+'"'+(pg?' readonly':'')+'>'+(pg?'<span class="mu" style="display:block;margin-top:4px">Plan Gratis: una sola pista. <button type="button" class="lnk" onclick="go(\'plan\')">Más pistas con Plus</button></span>':'')+'</label>'+field(["tipo","Tipo",TIPOS],e)+field(["evento","Nombre del evento (campeonato, exhibición, práctica, clase…)"],e)+'</div></fieldset>'
   +'<div id="ent">'+(e.entradas&&e.entradas.length?e.entradas:[{}]).map(function(x){return enRow(x)}).join("")+'</div>'
-  +'<div class="row"><button type="button" class="btn add" onclick="addEn()">+ Agregar entrada a pista</button></div>'
+  +'<div class="row"><button type="button" class="btn add" onclick="addEn()">'+ic("mas")+'Agregar entrada a pista</button></div>'
   +'<div class="row"><button class="btn" type="submit">Guardar sesión</button><button class="btn s" type="button" onclick="editing=null;ses()">Cancelar</button><span class="ok" id="ok"></span></div></form>';
   upCS();
-  $("#f").onsubmit=function(ev){ev.preventDefault();var o=read(ev.target);if(!o.circuito.trim()){$("#ok").textContent="Falta el circuito";return}o.entradas=rows();var pb=cStats(o.circuito,editing==="new"?null:editing).b,nb=sTot(o).b;flash=nb?(pb==null?"🏁 Primera marca en "+esc(o.circuito)+": "+fmt(nb):nb<pb?"🔥 ¡Nuevo récord en "+esc(o.circuito)+": "+fmt(nb)+"!":"✅ Sesión guardada"):"✅ Sesión guardada";if(editing==="new"){o.id=uid();db.sesiones.push(o)}else{o.id=editing;db.sesiones[db.sesiones.indexOf(e)]=o}editing=null;save();ses()};return}
- var T=db.sesiones.slice().sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"")}),G=groups();
- var h=(flash?'<div class="t" style="border-color:var(--ok)"><b>'+flash+'</b></div>':"")+'<div class="row"><button class="btn add" onclick="editing=\'new\';ses();window.scrollTo(0,0)">+ Nueva sesión</button></div>';flash="";
+  $("#f").onsubmit=function(ev){ev.preventDefault();var o=read(ev.target);if(!o.circuito.trim()){$("#ok").textContent="Falta el circuito";return}o.entradas=rows();var pb=cStats(o.circuito,editing==="new"?null:editing).b,nb=sTot(o).b;flash=nb?(pb==null?ic("sesiones")+" Primera marca en "+esc(o.circuito)+": "+fmt(nb):nb<pb?ic("llama")+" ¡Nuevo récord en "+esc(o.circuito)+": "+fmt(nb)+"!":ic("ok")+" Sesión guardada"):ic("ok")+" Sesión guardada";if(editing==="new"){o.id=uid();o.deporte=ACT;db.sesiones.push(o)}else{o.id=editing;o.deporte=e.deporte||ACT;db.sesiones[db.sesiones.indexOf(e)]=o}editing=null;save();ses()};return}
+ var T=SS().sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"")}),G=groups();
+ var h=(flash?'<div class="t" style="border-color:var(--ok)"><b>'+flash+'</b></div>':"")+'<div class="row"><button class="btn add" onclick="editing=\'new\';ses();window.scrollTo(0,0)">'+ic("mas")+'Nueva sesión</button></div>'+adSlot("SESIONES");flash="";
  h+=T.length?T.map(function(s){var t=sTot(s),en=s.entradas||[],g=G.filter(function(x){return x.k===nk(s.circuito)})[0],isB=t.b&&g&&g.b===t.b,lm=en.length?en[en.length-1].mejorar:"";
   return '<div class="t"><h3>'+esc(s.circuito)+' <span class="tag'+(/Carrera|Campeonato/.test(s.tipo)?" c":"")+'">'+esc(s.tipo)+'</span></h3><div class="mu">'+esc(s.fecha)+(s.evento?" · "+esc(s.evento):"")+'</div>'
   +'<div>'+en.length+' entrada(s) · '+hm(t.m)+' · '+t.v+' vueltas · Mejor: <span class="'+(isB?"best":"")+'">'+fmt(t.b)+'</span>'+(isB?" (récord en pista)":"")+'</div>'
   +en.map(function(e,i){var mo=db.motos.filter(function(m){return m.id===e.motoId})[0];return '<div class="mu">Entrada '+(i+1)+(e.clima?" · "+esc(e.clima):"")+(e.minutos?" · "+esc(e.minutos)+" min":"")+(e.mejor?" · "+esc(e.mejor):"")+(mo?" · "+esc(mName(mo)):"")+'</div>'}).join("")
   +(lm?'<div class="imp"><b>A mejorar:</b> '+esc(lm)+'</div>':"")
-  +'<div class="row" style="margin:8px 0 0"><button class="btn s" onclick="editing=\''+s.id+'\';ses();window.scrollTo(0,0)">Editar</button><button class="btn s" id="d'+s.id+'" onclick="del(\''+s.id+'\')">Eliminar</button></div></div>'}).join(""):'<p class="mu">Aún no hay sesiones registradas.</p>';
+  +'<div class="row" style="margin:8px 0 0"><button class="btn s" onclick="editing=\''+s.id+'\';ses();window.scrollTo(0,0)">Editar</button><button class="btn s" id="d'+s.id+'" onclick="del(\''+s.id+'\')">Eliminar</button></div></div>'}).join(""):'<p class="mu">Aún no hay sesiones de '+esc(dep(ACT)[1].toLowerCase())+' registradas.</p>';
  v.innerHTML=h}
 
 /* COMPARTIR IMAGEN */
@@ -361,7 +396,7 @@ function leer(inp,cb){var f=inp.files&&inp.files[0];inp.value="";if(!f)return;if
 // Recortador: arrastrar para mover, pellizcar, rueda o control para acercar, y
 // girar. Devuelve un JPEG del tamaño pedido (o.w × o.h) con calidad o.q.
 function recortar(img,o,cb){var st={z:1,x:0,y:0,r:0},P={},d0=0,z0=1,d=document.createElement("div");d.className="ovl";
- d.innerHTML='<div class="shc"><h3 style="margin:0 0 8px">'+o.titulo+'</h3><canvas id="crc" width="'+o.w+'" height="'+o.h+'"></canvas><div class="mu" style="margin:8px 0">Arrastra para mover · pellizca o usa el control para acercar</div><label>Zoom<input type="range" id="crz" min="1" max="4" step="0.01" value="1"></label><div class="row"><button class="btn s" id="crr">↻ Girar</button><button class="btn s" id="crx">Cancelar</button><button class="btn" id="cro">Usar foto</button></div></div>';
+ d.innerHTML='<div class="shc"><h3 style="margin:0 0 8px">'+o.titulo+'</h3><canvas id="crc" width="'+o.w+'" height="'+o.h+'"></canvas><div class="mu" style="margin:8px 0">Arrastra para mover · pellizca o usa el control para acercar</div><label>Zoom<input type="range" id="crz" min="1" max="4" step="0.01" value="1"></label><div class="row"><button class="btn s" id="crr">'+ic("girar")+'Girar</button><button class="btn s" id="crx">Cancelar</button><button class="btn" id="cro">Usar foto</button></div></div>';
  document.body.appendChild(d);var cv=d.querySelector("#crc"),zr=d.querySelector("#crz");
  function dm(){var rt=st.r%180!==0,iw=rt?img.height:img.width,ih=rt?img.width:img.height;return{iw:iw,ih:ih,s:Math.max(o.w/iw,o.h/ih)*st.z}}
  function clamp(){var m=dm(),mx=Math.max(0,(m.iw*m.s-o.w)/2),my=Math.max(0,(m.ih*m.s-o.h)/2);st.x=Math.max(-mx,Math.min(mx,st.x));st.y=Math.max(-my,Math.min(my,st.y))}
@@ -385,10 +420,10 @@ function dq(){clearTimeout(dq.t);dq.t=setTimeout(upCS,200)}
 function overlay(){var o=document.createElement("div"),fs=canFiles();o.id="sh";
  o.innerHTML='<div class="shc"><canvas id="cv" width="1080" height="1350"></canvas>'
  +'<div class="row"><button class="btn s" id="ff" onclick="setFmt(\'feed\')">Post 4:5 · Instagram, Facebook</button><button class="btn s" id="fs" onclick="setFmt(\'story\')">Vertical 9:16 · Historias, Reels, TikTok, Estados</button></div>'
- +'<div class="row">'+fileBtn("📷 Tomar foto","pick(this,\'photo\')","environment")+fileBtn("🖼️ Foto de galería","pick(this,\'photo\')")+(SH.mode==="ses"?'<label class="btn s" style="margin:0">Trazado de la pista (PNG)<input type="file" accept="image/png" style="display:none" onchange="pick(this,\'track\')"></label>':"")+'<button class="btn s" id="qf" onclick="SH.photo=null;draw()" style="display:none">Quitar foto</button></div>'
+ +'<div class="row">'+fileBtn(ic("camara")+"Tomar foto","pick(this,\'photo\')","environment")+fileBtn(ic("imagen")+"Foto de galería","pick(this,\'photo\')")+(SH.mode==="ses"?'<label class="btn s" style="margin:0">Trazado de la pista (PNG)<input type="file" accept="image/png" style="display:none" onchange="pick(this,\'track\')"></label>':"")+'<button class="btn s" id="qf" onclick="SH.photo=null;draw()" style="display:none">Quitar foto</button></div>'
  +(niv()<1?'<p class="mu" style="margin:0 0 10px">Plan Gratis: la imagen lleva marca de agua. <button class="lnk" onclick="$(\'#sh\').remove();go(\'plan\')">Quítala con Plus</button></p>':"")
  +'<label>Texto para tu publicación<textarea id="cap" readonly style="min-height:90px">'+esc(SH.cap)+'</textarea></label>'
- +'<div class="row">'+(fs?'<button class="btn" onclick="outShare()">📤 Compartir en WhatsApp, Instagram, TikTok…</button>':"")+'<button class="btn'+(fs?" s":"")+'" onclick="outDl()">⬇️ Descargar imagen</button><button class="btn s" onclick="cpc()">Copiar texto</button><button class="btn s" onclick="$(\'#sh\').remove()">Cerrar</button></div>'
+ +'<div class="row">'+(fs?'<button class="btn" onclick="outShare()">'+ic("compartir")+'Compartir en WhatsApp, Instagram, TikTok…</button>':"")+'<button class="btn'+(fs?" s":"")+'" onclick="outDl()">'+ic("descargar")+'Descargar imagen</button><button class="btn s" onclick="cpc()">Copiar texto</button><button class="btn s" onclick="$(\'#sh\').remove()">Cerrar</button></div>'
  +(fs?"":'<p class="mu">Descarga la imagen y súbela desde la app de tu red social.</p>')+'<img id="out" alt="" style="display:none"><div class="ok" id="om"></div></div>';
  document.body.appendChild(o);ld(LOGO,function(i){SH.logo=i;draw()});if(db.foto)ld(db.foto,function(i){SH.av=i;draw()});draw()}
 function setFmt(f){SH.fmt=f;draw()}
@@ -396,12 +431,12 @@ function share(btn){var b=btn.closest(".en"),f=$("#f"),e=eVals(b),mo=db.motos.fi
  var rec=!!ms&&(st.b==null||ms<=st.b);
  if(ms&&st.b!=null){var d=(ms-st.b)/1000;dl=d<0?"▲ "+Math.abs(d).toFixed(3)+" s más rápido que tu récord":d===0?"Igualaste tu récord":"+"+d.toFixed(3)+" s de tu récord"}
  SH={mode:"ses",fmt:"feed",e:e,ms:ms,c:c,fecha:f.elements.fecha.value,tipo:f.elements.tipo.value,ev:f.elements.evento.value,piloto:db.perfil.nombre||"",moto:mo?mName(mo):"",rec:rec,dl:dl};
- SH.cap=["🏁 "+c+" · "+SH.tipo+(SH.ev?" · "+SH.ev:""),"⏱ Mejor vuelta: "+(ms?fmt(ms):"—")+(rec?" 🔥 ¡Récord personal!":""),SH.moto?"🏍️ "+SH.moto:"","#RubusRacing #RRPiloto #Motociclismo"].filter(Boolean).join("\n");
+ SH.cap=["🏁 "+c+" · "+SH.tipo+(SH.ev?" · "+SH.ev:""),"⏱ Mejor vuelta: "+(ms?fmt(ms):"—")+(rec?" 🔥 ¡Récord personal!":""),SH.moto?(vt()==="moto"?"🏍️ ":vt()==="auto"?"🏎️ ":"🏁 ")+SH.moto:"","#RubusRacing #RRPiloto #"+dep(ACT)[3]].filter(Boolean).join("\n");
  overlay();var u=db.pistas[nk(c)];if(u)ld(u,function(i){SH.track=i;draw()})}
-function shareStats(){var G=groups(),tm=0,tv=0;db.sesiones.forEach(function(s){var t=sTot(s);tm+=t.m;tv+=t.v});
+function shareStats(){var G=groups(),S=SS(),tm=0,tv=0;S.forEach(function(s){var t=sTot(s);tm+=t.m;tv+=t.v});
  var top=G.filter(function(g){return g.b}).sort(function(a,b){return a.b-b.b}).slice(0,4).map(function(g){return{n:g.n,b:g.b}});
- SH={mode:"stats",fmt:"feed",tm:hm(tm),n:db.sesiones.length,p:G.length,v:tv,top:top,piloto:db.perfil.nombre||""};
- SH.cap="📊 Mis números en RR Piloto\n⏱ "+SH.tm+" en pista · "+SH.n+" sesiones · "+SH.p+" pistas\n#RubusRacing #RRPiloto #Motociclismo";overlay()}
+ SH={mode:"stats",fmt:"feed",tm:hm(tm),n:S.length,p:G.length,v:tv,top:top,piloto:db.perfil.nombre||""};
+ SH.cap="📊 Mis números en RR Piloto\n⏱ "+SH.tm+" en pista · "+SH.n+" sesiones · "+SH.p+" pistas\n#RubusRacing #RRPiloto #"+dep(ACT)[3];overlay()}
 function pick(inp,key){var f=inp.files[0];inp.value="";if(!f)return;var r=new FileReader();r.onload=function(){ld(r.result,function(i){
  if(key==="track"){var s=Math.min(1,700/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=Math.round(i.width*s);c.height=Math.round(i.height*s);c.getContext("2d").drawImage(i,0,0,c.width,c.height);var u=c.toDataURL("image/png");db.pistas[nk(SH.c)]=u;save();ld(u,function(j){SH.track=j;draw()})}
  else{SH[key]=i;draw()}})};r.readAsDataURL(f)}
@@ -462,7 +497,7 @@ function chart(P){if(!P.length)return '<p class="mu">Sin tiempos de vuelta regis
  s+='<text class="ax" x="'+L+'" y="'+(H-8)+'">'+esc(P[0].f)+'</text>';if(P.length>1)s+='<text class="ax" x="'+(W-R)+'" y="'+(H-8)+'" text-anchor="end">'+esc(P[P.length-1].f)+'</text>';
  return s+'</svg><div class="mu">Mejor vuelta por sesión · más arriba = más rápido · punto verde = récord</div>'}
 
-function datos(){var G=groups(),S=db.sesiones,tm=0,te=0,tv=0;
+function datos(){var G=groups(),S=SS(),tm=0,te=0,tv=0;
  S.forEach(function(s){var t=sTot(s);tm+=t.m;tv+=t.v;te+=(s.entradas||[]).length});
  var h='<div class="stats"><div class="st"><b>'+hm(tm)+'</b><small>Tiempo total en pista</small></div><div class="st"><b>'+S.length+'</b><small>Sesiones</small></div><div class="st"><b>'+te+'</b><small>Entradas a pista</small></div><div class="st"><b>'+tv+'</b><small>Vueltas</small></div><div class="st"><b>'+G.length+'</b><small>Pistas</small></div></div>';
  if(!G.length){h+='<p class="mu">Registra sesiones para ver tus datos por pista.</p>'}
@@ -472,18 +507,28 @@ function datos(){var G=groups(),S=db.sesiones,tm=0,te=0,tv=0;
   var P=[];g.s.forEach(function(s){var t=sTot(s);if(t.b)P.push({f:s.fecha||"",ms:t.b})});
   h+='<fieldset><legend>'+esc(g.n)+': evolución</legend>'+chart(P)+'<div style="margin-top:12px"><b style="font-size:13px">Historial en esta pista</b></div><div class="tw"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Evento</th><th>Entrada</th><th>Clima</th><th>Tiempo</th><th>Mejor vuelta</th></tr></thead><tbody>'+hist(g)+'</tbody></table></div></fieldset>';
   h=h0+L(1,"Estadísticas por pista",h)}
- h+=cuenta();
+ h+=adSlot("DATOS")+cuenta();
  $("#v").innerHTML=h}
 function cuenta(){var c=ME.consentimiento||{};
  return '<fieldset><legend>Mi cuenta</legend><p style="margin:0 0 6px"><b>'+esc(ME.email)+'</b></p><p class="mu" style="margin:0 0 10px">'+planTxt()+'</p>'
- +'<div class="row"><button class="btn" onclick="go(\'plan\')">Cambiar plan</button><button class="btn s" onclick="pwForm()">Cambiar contraseña</button>'+(standalone()?"":'<button class="btn s" onclick="instalar()">📲 Instalar app</button>')+'<button class="btn s" onclick="logout()">Cerrar sesión</button></div><div id="pw"></div></fieldset>'
- +notifBox()
+ +'<div class="row"><button class="btn" onclick="go(\'plan\')">Cambiar plan</button><button class="btn s" onclick="pwForm()">Cambiar contraseña</button>'+(standalone()?"":'<button class="btn s" onclick="instalar()">'+ic("telefono")+'Instalar app</button>')+'<button class="btn s" onclick="logout()">Cerrar sesión</button></div><div id="pw"></div></fieldset>'
+ +notifBox()+adsBox()
  +'<fieldset><legend>Privacidad</legend><p class="mu">Términos aceptados el '+esc(c.fecha||"—")+' (versión '+esc(c.version||"—")+')</p><label class="ck"><input type="checkbox" '+(c.mailing?"checked":"")+' onchange="setMail(this)"><span>Quiero recibir información de Rubus Racing en mi correo</span></label><div class="row"><button class="btn s" onclick="gate(\'terms\',1)">Ver términos</button><button class="btn s" onclick="dl()">Descargar mis datos</button><button class="btn s" id="wipe" onclick="wipe()">Borrar mi cuenta y mis datos</button></div></fieldset>'}
-function planTxt(){var t='Plan elegido: <b>'+esc(pName(ME.plan))+'</b>';if(ME.cortesia&&ME.planEfectivo===ME.cortesia)t+=' · Rubus Racing te asignó el plan <b>'+esc(pName(ME.cortesia))+'</b>'+(ME.cortesiaHasta?' hasta el '+esc(ME.cortesiaHasta):"")+' 🎁';return t}
+function planTxt(){var t='Plan elegido: <b>'+esc(pName(ME.plan))+'</b>';if(ME.cortesia&&ME.planEfectivo===ME.cortesia)t+=' · Rubus Racing te asignó el plan <b>'+esc(pName(ME.cortesia))+'</b>'+(ME.cortesiaHasta?' hasta el '+esc(ME.cortesiaHasta):"")+' '+ic("regalo",15);return t}
 function setMail(c){api("PUT","/api/cuenta/mailing",{mailing:c.checked}).then(function(r){ME=r.user;toast("Preferencia guardada ✓")}).catch(function(e){c.checked=!c.checked;toast(e.message)})}
 function pwForm(){$("#pw").innerHTML='<form id="pwf" style="margin-top:10px"><div class="g"><label>Contraseña actual<input type="password" name="actual" autocomplete="current-password" required></label><label>Nueva contraseña<input type="password" name="nueva" autocomplete="new-password" minlength="8" required></label></div><div class="row"><button class="btn" type="submit">Guardar contraseña</button><span class="ok" id="pwm"></span></div></form>';
  $("#pwf").onsubmit=function(e){e.preventDefault();api("PUT","/api/auth/password",read(e.target)).then(function(){$("#pw").innerHTML="";toast("Contraseña actualizada ✓")}).catch(function(x){$("#pwm").textContent=x.message})}}
 function dl(){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({cuenta:{email:ME.email,plan:ME.plan,consentimiento:ME.consentimiento},ficha:doc()},null,2)],{type:"application/json"}));a.download="rr-piloto-mis-datos.json";a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},2000)}
+
+/* PUBLICIDAD: Gratis y Plus ven anuncios de sponsors; Pro solo si los activa */
+function verAds(){return ME&&(ME.planEfectivo!=="PRO"||ME.anunciosPro)}
+function adSlot(l){return verAds()?'<div class="adslot" data-lugar="'+l+'"></div>':""}
+function fillAds(){document.querySelectorAll(".adslot:not([data-ok])").forEach(function(el){el.dataset.ok=1;
+ api("GET","/api/anuncios?lugar="+el.dataset.lugar+"&deporte="+ACT).then(function(r){var a=r.anuncio;if(!a||!el.isConnected)return;
+  el.innerHTML='<div class="ad" role="link" tabindex="0" data-id="'+esc(a.id)+'" data-href="'+esc(/^https?:\/\//.test(a.enlace||"")?a.enlace:"")+'" onclick="adClic(this)">'+(a.imagen?'<img src="'+esc(a.imagen)+'" alt=""><span class="adl">Publicidad</span>':"")+'<div class="adt">'+(a.imagen?"":'<span class="adl">Publicidad</span>')+'<b>'+esc(a.titulo)+'</b>'+(a.texto?'<div class="mu">'+esc(a.texto)+'</div>':"")+'<div class="mu" style="margin-top:4px">'+esc(a.sponsor)+'</div></div></div>'}).catch(function(){})})}
+function adClic(el){var u=el.dataset.href;try{fetch("/api/anuncios/"+encodeURIComponent(el.dataset.id)+"/clic",{method:"POST",keepalive:true,credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}"})}catch(e){}if(u)window.open(u,"_blank","noopener")}
+function adsBox(){var pro=ME.planEfectivo==="PRO";return '<fieldset><legend>Anuncios de sponsors</legend>'+(pro?'<label class="ck"><input type="checkbox"'+(ME.anunciosPro?" checked":"")+' onchange="setAds(this)"><span>Mostrar anuncios de nuestros sponsors. Ayudan a mantener RR Piloto.</span></label>':'<p class="mu" style="margin:0">Tu plan incluye anuncios de nuestros sponsors, que ayudan a mantener RR Piloto. El plan Pro no tiene anuncios.</p>')+'</fieldset>'}
+function setAds(c){api("PUT","/api/cuenta/anuncios",{activo:c.checked}).then(function(r){ME=r.user;toast(c.checked?"¡Gracias por apoyar a RR Piloto!":"Anuncios desactivados")}).catch(function(e){c.checked=!c.checked;toast(e.message)})}
 
 /* PLANES */
 function planView(){$("#v").innerHTML='<h2 style="margin:4px 0 6px;font-size:20px">Tu plan</h2><p class="mu" style="margin:0 0 12px">'+planTxt()+'. Puedes cambiarlo cuando quieras.</p>'+planCards(ME.plan,"setPlan")}
@@ -498,15 +543,15 @@ function vid(u){u=String(u||"");var m=u.match(/(?:youtube\.com\/(?:watch\?(?:.*&
  m=u.match(/vimeo\.com\/(?:video\/)?(\d{5,12})/i);if(m)return '<div class="vw"><iframe src="https://player.vimeo.com/video/'+m[1]+'" title="Video"'+A+'></iframe></div>';
  if(/^https?:\/\/[^\s"]+\.(mp4|webm|mov)(\?[^\s"]*)?$/i.test(u))return '<div class="vw"><video src="'+esc(u)+'" controls preload="metadata" playsinline></video></div>';return ""}
 function mCard(x){var v=vid(x.enlace),pdf=/\.pdf(\?|$)/i.test(x.enlace||""),lk=!v&&/^https?:\/\//.test(x.enlace||""),c=x.cuerpo||"";
- var body=!c?"":x.tipo==="BENEFICIO"?'<div class="cod" id="c'+x.id+'">'+esc(c)+'</div> <button class="btn s" onclick="cpTxt(\'c'+x.id+'\')">Copiar</button>':c.length>240?'<details><summary class="lnk">Leer más</summary><p>'+esc(c)+'</p></details>':'<p>'+esc(c)+'</p>';
- return '<div class="mt">'+(x.categoria?'<span class="tag c" style="margin:0 0 6px;display:inline-block">'+esc(x.categoria)+'</span>':"")+'<h3>'+(v?"▶ ":pdf?"📄 ":"")+esc(x.titulo)+'</h3>'+(x.resumen?'<div class="mu">'+esc(x.resumen)+'</div>':"")+v+body
- +(lk?'<div style="margin-top:8px"><a class="btn s" style="display:inline-block;text-decoration:none" href="'+esc(x.enlace)+'" target="_blank" rel="noopener">'+(pdf?"Abrir PDF":x.tipo==="BENEFICIO"?"Ir a la tienda":"Abrir enlace")+' →</a></div>':"")+'</div>'}
+ var body=!c?"":x.tipo==="BENEFICIO"?'<div class="cod" id="c'+x.id+'">'+esc(c)+'</div> <button class="btn s" onclick="cpTxt(\'c'+x.id+'\')">'+ic("copiar")+'Copiar</button>':c.length>240?'<details><summary class="lnk">Leer más</summary><p>'+esc(c)+'</p></details>':'<p>'+esc(c)+'</p>';
+ return '<div class="mt">'+(x.categoria?'<span class="tag c" style="margin:0 0 6px;display:inline-block">'+esc(x.categoria)+'</span>':"")+'<h3 class="ttl">'+(v?ic("play"):pdf?ic("archivo"):x.tipo==="BENEFICIO"?ic("etiqueta"):"")+esc(x.titulo)+'</h3>'+(x.resumen?'<div class="mu">'+esc(x.resumen)+'</div>':"")+v+body
+ +(lk?'<div style="margin-top:8px"><a class="btn s" style="display:inline-block;text-decoration:none" href="'+esc(x.enlace)+'" target="_blank" rel="noopener">'+(pdf?"Abrir PDF":x.tipo==="BENEFICIO"?"Ir a la tienda":"Abrir enlace")+ic("enlace",15)+'</a></div>':"")+'</div>'}
 function cpTxt(id){var t=$("#"+id).textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){toast("Copiado ✓")},function(){toast(t)})}
 function mat(){if(niv()<2){$("#v").innerHTML=lockCard(2,"Material y beneficios","Accede a material educativo y de capacitación teórica de Rubus Racing, y a descuentos en marcas asociadas.");return}
  if(!MAT){$("#v").innerHTML='<p class="mu">Cargando material…</p>';api("GET","/api/contenido").then(function(r){MAT=r.items;if(cur==="mat")mat()}).catch(function(e){$("#v").innerHTML='<p class="mu">'+esc(e.message)+'</p>'});return}
  var T=MAT.filter(function(x){return x.tipo===MTAB}),cs=[];T.forEach(function(x){var k=x.categoria||"";if(cs.indexOf(k)<0)cs.push(k)});if(cs.indexOf(MCAT)<0)MCAT="";
  var n=function(t){return MAT.filter(function(x){return x.tipo===t}).length};
- var h='<h2 style="margin:4px 0 10px;font-size:20px">Material y beneficios</h2><div class="row"><button class="btn'+(MTAB==="MATERIAL"?"":" s")+'" onclick="MTAB=\'MATERIAL\';MCAT=\'\';mat()">🎓 Material educativo ('+n("MATERIAL")+')</button><button class="btn'+(MTAB==="BENEFICIO"?"":" s")+'" onclick="MTAB=\'BENEFICIO\';MCAT=\'\';mat()">🏷️ Descuentos ('+n("BENEFICIO")+')</button></div>';
+ var h='<h2 style="margin:4px 0 10px;font-size:20px">Material y beneficios</h2><div class="row"><button class="btn'+(MTAB==="MATERIAL"?"":" s")+'" onclick="MTAB=\'MATERIAL\';MCAT=\'\';mat()">'+ic("material")+'Material educativo ('+n("MATERIAL")+')</button><button class="btn'+(MTAB==="BENEFICIO"?"":" s")+'" onclick="MTAB=\'BENEFICIO\';MCAT=\'\';mat()">'+ic("etiqueta")+'Descuentos ('+n("BENEFICIO")+')</button></div>';
  if(cs.filter(Boolean).length)h+='<div class="row">'+[""].concat(cs.filter(Boolean)).map(function(k){return '<button class="pill" style="margin:0;'+(k===MCAT?"":"background:var(--card);color:var(--tx);border:1px solid var(--bd)")+'" onclick="MCAT=this.dataset.k;mat()" data-k="'+esc(k)+'">'+(k?esc(k):"Todas")+'</button>'}).join("")+'</div>';
  if(!T.length)h+='<p class="mu">Pronto agregaremos contenido aquí.</p>';
  else (MCAT?[MCAT]:cs).forEach(function(k){var I=T.filter(function(x){return (x.categoria||"")===k});if(!I.length)return;h+=(cs.length>1||k?'<h3 style="margin:16px 0 8px;font-size:16px">'+(k?esc(k):"Otros")+'</h3>':"")+'<div class="mg">'+I.map(mCard).join("")+'</div>'});

@@ -1,7 +1,7 @@
 // Service worker de RR Piloto: permite instalar la app, abrirla sin conexión
 // (con la última versión descargada) y recibir notificaciones.
-const CACHE = 'rr-piloto-v1';
-const SHELL = ['/', '/campos.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
+const CACHE = 'rr-piloto-v2';
+const SHELL = ['/', '/campos.js', '/iconos.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

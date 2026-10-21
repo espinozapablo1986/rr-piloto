@@ -45,6 +45,11 @@ model Usuario {
   cortesia      Plan?
   cortesiaHasta DateTime? @db.Date
 
+  // Deportes que practica (ids de DEPORTES en web/campos.js).
+  deportes String[] @default([])
+  // Los planes Gratis y Plus ven anuncios; el Pro solo si los activa.
+  anunciosPro Boolean @default(false)
+
   // Aceptación de términos: versión, fecha, mailing, datos del apoderado.
   consentimiento Json?
 
@@ -93,4 +98,27 @@ model Contenido {
   orden       Int           @default(0)
   creado      DateTime      @default(now())
   actualizado DateTime      @updatedAt
+}
+
+// Publicidad de sponsors para los planes Gratis y Plus (y Pro si la activa).
+model Anuncio {
+  id          String    @id @default(cuid())
+  sponsor     String
+  titulo      String
+  texto       String?
+  // Banner en JPEG (data URL), ya reducido por el panel.
+  imagen      String?   @db.Text
+  enlace      String?
+  // Dónde aparece: INICIO, SESIONES, DATOS. Deportes vacíos = todos.
+  lugares     String[]  @default([])
+  deportes    String[]  @default([])
+  desde       DateTime? @db.Date
+  hasta       DateTime? @db.Date
+  activo      Boolean   @default(true)
+  // Peso relativo cuando varios anuncios compiten por el mismo espacio.
+  peso        Int       @default(1)
+  impresiones Int       @default(0)
+  clics       Int       @default(0)
+  creado      DateTime  @default(now())
+  actualizado DateTime  @updatedAt
 }

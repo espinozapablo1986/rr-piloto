@@ -1,6 +1,6 @@
 # RR Piloto
 
-Plataforma web para pilotos de Rubus Racing: ficha del piloto y contacto de emergencia, motos, registro de sesiones y entradas a pista, estadísticas por circuito, logros, imágenes para compartir en redes y material educativo. Se puede instalar como app en el teléfono.
+Plataforma web para pilotos de Rubus Racing: ficha del piloto y contacto de emergencia, vehículos, registro de sesiones y entradas a pista, estadísticas por circuito, logros, imágenes para compartir en redes y material educativo. Sirve para varios deportes motor (motociclismo de pista, motocross, enduro, supermoto, karting y automovilismo): el piloto elige los suyos y cambia entre ellos desde la pantalla principal. Se puede instalar como app en el teléfono.
 
 Desarrollado por Rubus Racing. Todos los derechos reservados.
 
@@ -18,9 +18,17 @@ El piloto cambia de plan cuando quiere. El administrador también puede cambiár
 
 Bajar de plan no borra datos: lo que el plan ya no permite editar queda congelado y se conserva.
 
+## Publicidad
+
+Los pilotos Gratis y Plus ven anuncios de sponsors en Inicio, Sesiones y Datos. Los Pro no los ven, salvo que los activen en Datos → Anuncios de sponsors. Los anuncios se crean en `/admin → Anuncios`, con lugares, deportes, vigencia y peso, y miden impresiones y clics.
+
+## Panel de administración
+
+`/admin` abre en un dashboard con indicadores de pilotos, planes y actividad, filtrable por deporte y período: quiénes corren más y quiénes menos (para campañas de fidelización), circuitos más corridos, ranking de mejores vueltas por pista y por trazado, y métricas de publicidad. La lista de pilotos se exporta a CSV; antes de escribirles por correo, respeta la columna de mailing.
+
 ## Estructura
 
-- `web/`: la app del piloto (`index.html`), el panel de administración (`admin.html`), las definiciones de campos que usan ambos (`campos.js`) y la instalación como app (`manifest.webmanifest`, `sw.js`, `icons/`). nginx los sirve y reenvía `/api` a la API.
+- `web/`: la app del piloto (`index.html`), el panel de administración (`admin.html`), las definiciones de campos y deportes que usan ambos (`campos.js`), los íconos (`iconos.js`) y la instalación como app (`manifest.webmanifest`, `sw.js`, `icons/`). nginx los sirve y reenvía `/api` a la API.
 - `api/`: Node 22, Express 5, Prisma y PostgreSQL 16. El servidor valida las reglas de cada plan, no solo la app.
 - `docker-compose.yml`: base de datos, respaldo diario, migración del esquema, API y web.
 

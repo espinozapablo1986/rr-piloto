@@ -3,7 +3,8 @@ import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
 import { asyncHandler, notFound, parse } from '../lib/http.js';
-import { planEfectivo } from '../lib/planes.js';
+import { DEPORTES, planEfectivo } from '../lib/planes.js';
+import { calcularDashboard } from '../lib/dashboard.js';
 import { requireAdmin, revokeSessions, toPublicUser } from '../auth/session.js';
 
 export const adminRouter = Router();
@@ -21,6 +22,7 @@ const resumen = (u) => {
     cortesiaGuardada: u.cortesia,
     cortesiaHastaGuardada: u.cortesiaHasta ? u.cortesiaHasta.toISOString().slice(0, 10) : null,
     nombre: p.nombre || '',
+    anunciosPro: u.anunciosPro,
     rut: p.rut || '',
     telefono: p.telefono || '',
     sesiones: ses.length,
@@ -118,5 +120,58 @@ adminRouter.put('/contenido/:id', asyncHandler(async (req, res) => {
 
 adminRouter.delete('/contenido/:id', asyncHandler(async (req, res) => {
   await prisma.contenido.deleteMany({ where: { id: req.params.id } });
+  res.json({ ok: true });
+}));
+
+/* Dashboard */
+
+adminRouter.get('/dashboard', asyncHandler(async (req, res) => {
+  const deporte = DEPORTES.includes(req.query.deporte) ? req.query.deporte : '';
+  const dias = [30, 90, 180, 365].includes(+req.query.dias) ? +req.query.dias : 0;
+  res.json(await calcularDashboard({ deporte, dias }));
+}));
+
+/* Publicidad de sponsors */
+
+const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha no válida.');
+const Anuncio = z.object({
+  sponsor: z.string().trim().min(1, 'Falta el sponsor.').max(120),
+  titulo: z.string().trim().min(1, 'Falta el título.').max(160),
+  texto: z.string().trim().max(400).optional().default(''),
+  // El panel ya entrega el banner reducido a JPEG; el tope evita abusos.
+  imagen: z.union([z.literal(''), z.string().startsWith('data:image/').max(900_000, 'La imagen es demasiado pesada.')])
+    .optional().default(''),
+  enlace: z.union([z.literal(''), z.string().trim().max(500)
+    .regex(/^https?:\/\/[^\s]+$/i, 'El enlace debe ser una URL completa (https://…).')]).optional().default(''),
+  lugares: z.array(z.enum(['INICIO', 'SESIONES', 'DATOS'])).min(1, 'Elige al menos un lugar.'),
+  deportes: z.array(z.enum(DEPORTES)).optional().default([]),
+  desde: fecha.nullable().optional().default(null),
+  hasta: fecha.nullable().optional().default(null),
+  activo: z.boolean().optional().default(true),
+  peso: z.number().int().min(1).max(100).optional().default(1),
+});
+const aDatos = (d) => ({ ...d, desde: d.desde ? new Date(d.desde) : null, hasta: d.hasta ? new Date(d.hasta) : null });
+
+adminRouter.get('/anuncios', asyncHandler(async (_req, res) => {
+  res.json({ items: await prisma.anuncio.findMany({ orderBy: [{ activo: 'desc' }, { creado: 'desc' }] }) });
+}));
+
+adminRouter.post('/anuncios', asyncHandler(async (req, res) => {
+  res.status(201).json({ item: await prisma.anuncio.create({ data: aDatos(parse(Anuncio, req.body)) }) });
+}));
+
+adminRouter.put('/anuncios/:id', asyncHandler(async (req, res) => {
+  const data = aDatos(parse(Anuncio, req.body));
+  if (!(await prisma.anuncio.findUnique({ where: { id: req.params.id } }))) throw notFound();
+  res.json({ item: await prisma.anuncio.update({ where: { id: req.params.id }, data }) });
+}));
+
+adminRouter.post('/anuncios/:id/reiniciar', asyncHandler(async (req, res) => {
+  await prisma.anuncio.updateMany({ where: { id: req.params.id }, data: { impresiones: 0, clics: 0 } });
+  res.json({ ok: true });
+}));
+
+adminRouter.delete('/anuncios/:id', asyncHandler(async (req, res) => {
+  await prisma.anuncio.deleteMany({ where: { id: req.params.id } });
   res.json({ ok: true });
 }));
