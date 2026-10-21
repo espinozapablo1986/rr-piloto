@@ -20,9 +20,10 @@ var NA_TXT="No aplica";
 var NA=["isapre","seguro","clinica","emTel2","alergias","enfermedades","medicamentos","antecedentes","licencia","categoria","nCarrera","equipo"];
 // Campos que no se piden según otra respuesta: con Fonasa no hay Isapre.
 var OCULTO={isapre:function(d){return d.prevision==="Fonasa"||d.prevision==="Sin previsión"}};
-// Deportes motor: id, nombre, tipo de vehículo (moto, kart o auto) y hashtag.
+// Deportes motor: id, nombre, tipo de vehículo (moto, kart o auto), hashtag e
+// ícono propio (iconos.js).
 // Las sesiones y los vehículos llevan el deporte; lo anterior a esto es "moto".
-var DEPORTES=[["moto","Motociclismo de pista","moto","Motociclismo"],["mx","Motocross","moto","Motocross"],["enduro","Enduro","moto","Enduro"],["supermoto","Supermoto","moto","Supermoto"],["karting","Karting","kart","Karting"],["auto","Automovilismo","auto","Automovilismo"]];
+var DEPORTES=[["moto","Motociclismo de pista","moto","Motociclismo","moto"],["mx","Motocross","moto","Motocross","mx"],["enduro","Enduro","moto","Enduro","enduro"],["supermoto","Supermoto","moto","Supermoto","casco"],["karting","Karting","kart","Karting","kart"],["auto","Automovilismo","auto","Automovilismo","auto"]];
 function dep(id){return DEPORTES.filter(function(d){return d[0]===id})[0]||DEPORTES[0]}
 var VEH={moto:"Moto",kart:"Kart",auto:"Auto"};
 // Medallas, copas y niveles. Debe coincidir con api/src/lib/logros.js:

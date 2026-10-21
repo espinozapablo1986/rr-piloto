@@ -149,7 +149,7 @@ details.acc .g{padding:0 14px 4px}
 </head>
 <body>
 <header>
-  <div style="display:flex;align-items:center;gap:10px"><img id="lg" alt="RR Piloto" style="height:46px;width:46px;border-radius:8px"><h1>RR <span>Piloto</span></h1></div>
+  <div style="display:flex;align-items:center;gap:10px;cursor:pointer;width:max-content" role="link" tabindex="0" aria-label="Ir al inicio" onclick="if(ME&&ME.estado==='APROBADO')go('inicio')"><img id="lg" alt="RR Piloto" style="height:46px;width:46px;border-radius:8px"><h1>RR <span>Piloto</span></h1></div>
   <div class="sub" id="sub">Rubus Racing · Beta</div>
   <div class="dsel" id="dsel" aria-label="Deporte"></div>
   <nav id="nav"></nav>
@@ -225,7 +225,7 @@ function notifBox(){var s=notifEstado(),t={granted:"Activadas en este dispositiv
 function notifOn(){Notification.requestPermission().then(function(p){if(p==="granted")notifTest();render()})}
 function notifTest(){navigator.serviceWorker.ready.then(function(r){return r.showNotification("RR Piloto",{body:"Las notificaciones están activadas ✓",icon:"/icons/icon-192.png",badge:"/icons/icon-192.png"})}).catch(function(){toast("No se pudo mostrar la notificación.")})}
 function hdr(){if(!ME)return;var D=misDep();$("#sub").innerHTML='Rubus Racing · Beta <button class="pill" onclick="go(\'plan\')">Plan '+esc(pName(ME.planEfectivo))+'</button>';
- $("#dsel").innerHTML=D.length>1?D.map(function(d){var x=dep(d);return '<button class="'+(d===ACT?"on":"")+'" onclick="cambiarDep(\''+d+'\')">'+ic(x[2],16)+esc(x[1])+'</button>'}).join(""):'<button class="on" onclick="go(\'cuenta\',\'deportes\')">'+ic(vt(),16)+esc(dep(ACT)[1])+'</button>'}
+ $("#dsel").innerHTML=D.length>1?D.map(function(d){var x=dep(d);return '<button class="'+(d===ACT?"on":"")+'" onclick="cambiarDep(\''+d+'\')">'+ic(x[4],16)+esc(x[1])+'</button>'}).join(""):'<button class="on" onclick="go(\'cuenta\',\'deportes\')">'+ic(dep(ACT)[4],16)+esc(dep(ACT)[1])+'</button>'}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function uid(){return String(Date.now())+Math.floor(Math.random()*999)}
 
@@ -253,11 +253,11 @@ function sTot(s){var m=0,v=0,b=null;(s.entradas||[]).forEach(function(e){m+=+e.m
 function cStats(c,ex){var r={n:0,m:0,e:0,b:null,bf:""};if(!nk(c))return r;SS().forEach(function(s){if(s.id===ex||nk(s.circuito)!==nk(c))return;var t=sTot(s);r.n++;r.m+=t.m;r.e+=(s.entradas||[]).length;if(t.b&&(r.b==null||t.b<r.b)){r.b=t.b;r.bf=s.fecha}});return r}
 function mName(m){return m.apodo||((m.marca||"")+" "+(m.modelo||"")).trim()||VEH[dep(m.deporte)[2]]+" sin nombre"}
 function groups(){var g={},o=[];SS().forEach(function(s){var k=nk(s.circuito);if(!k)return;if(!g[k]){g[k]={k:k,n:s.circuito,s:[]};o.push(g[k])}g[k].s.push(s)});
- o.forEach(function(x){x.s.sort(function(a,b){return (a.fecha||"").localeCompare(b.fecha||"")});x.m=0;x.e=0;x.b=null;x.bf="";x.s.forEach(function(s){var t=sTot(s);x.m+=t.m;x.e+=(s.entradas||[]).length;if(t.b&&(x.b==null||t.b<x.b)){x.b=t.b;x.bf=s.fecha}})});
+ o.forEach(function(x){x.s.sort(function(a,b){return (a.fecha||"").localeCompare(b.fecha||"")});x.m=0;x.e=0;x.b=null;x.bf="";x.s.forEach(function(s){var t=sTot(s);x.m+=t.m;x.e+=(s.entradas||[]).length;if(t.b&&(x.b==null||t.b<x.b)){x.b=t.b;x.bf=s.fecha;x.bid=s.id}})});
  o.sort(function(a,b){return b.m-a.m});return o}
 
 var tabs=[["inicio","inicio","Inicio"],["ses","sesiones","Sesiones"],["moto","",""],["met","metricas","Métricas"],["prem","premio","Premios"],["mat","material","Material"],["cuenta","cuenta","Cuenta"]],cur="inicio",flash="",editing=null,curMoto=null,dc=null,pend=null;
-function nav(){$("#nav").innerHTML=tabs.map(function(t){var v=t[0]==="moto";return '<button class="'+(t[0]===cur?"on":"")+'" onclick="go(\''+t[0]+'\')"><b>'+ic(v?vt():t[1],22)+'</b>'+(v?V():t[2])+'</button>'}).join("")}
+function nav(){$("#nav").innerHTML=tabs.map(function(t){var v=t[0]==="moto";return '<button class="'+(t[0]===cur?"on":"")+'" onclick="go(\''+t[0]+'\')"><b>'+ic(v?dep(ACT)[4]:t[1],22)+'</b>'+(v?V():t[2])+'</button>'}).join("")}
 function go(t,sub){cur=t;CSUB=sub||"";editing=null;pend=null;nav();render();window.scrollTo(0,0)}
 function render(){hdr();setTimeout(fillAds,0);if(cur==="inicio")inicio();else if(cur==="cuenta")perfil();else if(cur==="prem")premios();else if(cur==="moto")moto();else if(cur==="ses")ses();else if(cur==="mat")mat();else if(cur==="plan")planView();else{cur="met";datos()}}
 
@@ -305,7 +305,7 @@ function acepto(){var m=$("#ckm").checked,tn=$("#tn").value.trim(),tr=$("#tr").v
  if(!$("#ck1").checked||!$("#ck2").checked){$("#tm").textContent="Debes aceptar las dos casillas obligatorias.";return}
  if(m&&(!tn||!tr)){$("#tm").textContent="Indica nombre y RUT del apoderado.";return}
  REG={terminos:true,salud:true,mailing:$("#ck3").checked,menor:m,tutor:tn,tutorRut:tr,version:TCV};gate("registro")}
-function depChk(sel){return '<div class="chk">'+DEPORTES.map(function(d){return '<label><input type="checkbox" data-dep="'+d[0]+'"'+(sel.indexOf(d[0])>=0?" checked":"")+'>'+ic(d[2],18)+esc(d[1])+'</label>'}).join("")+'</div>'}
+function depChk(sel){return '<div class="chk">'+DEPORTES.map(function(d){return '<label><input type="checkbox" data-dep="'+d[0]+'"'+(sel.indexOf(d[0])>=0?" checked":"")+'>'+ic(d[4],18)+esc(d[1])+'</label>'}).join("")+'</div>'}
 function depSel(root){return [].slice.call(root.querySelectorAll("[data-dep]:checked")).map(function(i){return i.dataset.dep})}
 function pickPlan(p){PSEL=p;$("#rp").innerHTML=planCards(PSEL,"pickPlan")}
 function wipe(){var b=$("#wipe");if(pend==="w"){pend=null;b.textContent="Borrando…";api("DELETE","/api/cuenta").then(function(){try{localStorage.removeItem(KEY)}catch(e){}ME=null;db=mig({});VER=0;cur="inicio";gate("portada");toast("Tu cuenta y tus datos fueron eliminados.")}).catch(function(e){b.textContent="Borrar mi cuenta y mis datos";toast(e.message)})}else{pend="w";b.textContent="¿Seguro? Se borra tu cuenta y todo. Toca de nuevo"}}
@@ -347,7 +347,7 @@ var CSUB="";
 var CSEC={ficha:["escudo","Ficha del piloto"],deportes:["deportes","Mis deportes"],seguridad:["llave","Contraseña y sesión"],app:["telefono","App y notificaciones"],anuncios:["anuncio","Anuncios de sponsors"],privacidad:["candado","Privacidad y mis datos"]};
 function perfil(){if(CSUB&&CSEC[CSUB])return cuentaSub();
  var p=db.perfil||{},pc=pct(),c=ME.consentimiento||{},ne=notifEstado(),D=misDep();
- function fila(k,d){var x=CSEC[k];return '<button class="crow" onclick="go(\'cuenta\',\''+k+'\')"><span class="ci">'+ic(k==="deportes"?vt():x[0],20)+'</span><span class="ct"><b>'+x[1]+'</b><small>'+d+'</small></span>'+ic("chev",18)+'</button>'}
+ function fila(k,d){var x=CSEC[k];return '<button class="crow" onclick="go(\'cuenta\',\''+k+'\')"><span class="ci">'+ic(k==="deportes"?dep(ACT)[4]:x[0],20)+'</span><span class="ct"><b>'+x[1]+'</b><small>'+d+'</small></span>'+ic("chev",18)+'</button>'}
  $("#v").innerHTML='<div class="t chd">'+av(68)+'<div style="min-width:0;flex:1"><h2 style="margin:0;font-size:19px">'+esc(p.nombre||"Piloto")+'</h2><div class="mu" style="overflow:hidden;text-overflow:ellipsis">'+esc(ME.email||"")+'</div><div class="mu" style="margin-top:4px">'+planTxt()+'</div></div></div>'
  +'<div class="row"><button class="btn" onclick="go(\'plan\')">'+ic("estrella")+'Cambiar plan</button><button class="btn s" onclick="logout()">'+ic("salir")+'Cerrar sesión</button></div>'
  +'<div class="cl">'+fila("ficha","Ficha de emergencia "+pc+"%"+(p.emNombre?" · contacto: "+esc(p.emNombre):" · falta el contacto de emergencia"))
@@ -592,13 +592,15 @@ function chart(P){if(!P.length)return '<p class="mu">Sin tiempos de vuelta regis
  s+='<text class="ax" x="'+L+'" y="'+(H-8)+'">'+esc(P[0].f)+'</text>';if(P.length>1)s+='<text class="ax" x="'+(W-R)+'" y="'+(H-8)+'" text-anchor="end">'+esc(P[P.length-1].f)+'</text>';
  return s+'</svg><div class="mu">Mejor vuelta por sesión · más arriba = más rápido · punto verde = récord</div>'}
 
+// Abre la sesión indicada (por ejemplo, la del récord de una pista).
+function verSes(id){go("ses");editing=id;ses();window.scrollTo(0,0)}
 function datos(){var G=groups(),S=SS(),tm=0,te=0,tv=0;
  S.forEach(function(s){var t=sTot(s);tm+=t.m;tv+=t.v;te+=(s.entradas||[]).length});
  var h='<h2 class="ttl" style="margin:4px 0 12px;font-size:20px">'+ic("metricas",22)+'Mis métricas · '+esc(dep(ACT)[1])+'</h2>'+'<div class="stats"><div class="st"><b>'+hm(tm)+'</b><small>Tiempo total en pista</small></div><div class="st"><b>'+S.length+'</b><small>Sesiones</small></div><div class="st"><b>'+te+'</b><small>Entradas a pista</small></div><div class="st"><b>'+tv+'</b><small>Vueltas</small></div><div class="st"><b>'+G.length+'</b><small>Pistas</small></div></div>';
  if(!G.length){h+='<p class="mu">Registra sesiones para ver tus datos por pista.</p>'}
  else{if(!dc||!G.filter(function(x){return x.k===dc}).length)dc=G[0].k;var g=G.filter(function(x){return x.k===dc})[0],mx=G[0].m||1,h0=h;h="";
   h+='<fieldset><legend>Tiempo en pista por circuito</legend>'+G.map(function(x){return '<div><span class="mu">'+esc(x.n)+' · '+hm(x.m)+'</span><div class="bar" style="width:'+Math.max(2,x.m/mx*100)+'%"></div></div>'}).join("")+'</fieldset>';
-  h+='<fieldset><legend>Pistas con registros</legend><div class="tw"><table><thead><tr><th>Pista</th><th>Sesiones</th><th>Entradas</th><th>Tiempo total</th><th>Mejor tiempo</th><th>Fecha</th></tr></thead><tbody>'+G.map(function(x){return '<tr class="'+(x.k===dc?"sel":"")+'" onclick="dc=\''+x.k.replace(/'/g,"\\'")+'\';datos()"><td>'+esc(x.n)+'</td><td>'+x.s.length+'</td><td>'+x.e+'</td><td>'+hm(x.m)+'</td><td class="best">'+fmt(x.b)+'</td><td>'+esc(x.bf)+'</td></tr>'}).join("")+'</tbody></table></div><div class="mu" style="margin:8px 0">Toca una pista para ver su detalle.</div></fieldset>';
+  h+='<fieldset><legend>Pistas con registros</legend><div class="tw"><table><thead><tr><th>Pista</th><th>Sesiones</th><th>Entradas</th><th>Tiempo total</th><th>Mejor tiempo</th><th>Fecha</th></tr></thead><tbody>'+G.map(function(x){return '<tr class="'+(x.k===dc?"sel":"")+'" onclick="dc=\''+x.k.replace(/'/g,"\\'")+'\';datos()"><td>'+esc(x.n)+'</td><td>'+x.s.length+'</td><td>'+x.e+'</td><td>'+hm(x.m)+'</td><td class="best">'+(x.bid?'<button class="lnk" style="color:var(--ok)" title="Ver la sesión del récord" onclick="event.stopPropagation();verSes(\''+x.bid+'\')">'+fmt(x.b)+'</button>':fmt(x.b))+'</td><td>'+esc(x.bf)+'</td></tr>'}).join("")+'</tbody></table></div><div class="mu" style="margin:8px 0">Toca una pista para ver su detalle.</div></fieldset>';
   var P=[];g.s.forEach(function(s){var t=sTot(s);if(t.b)P.push({f:s.fecha||"",ms:t.b})});
   h+='<fieldset><legend>'+esc(g.n)+': evolución</legend>'+chart(P)+'<div style="margin-top:12px"><b style="font-size:13px">Historial en esta pista</b></div><div class="tw"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Evento</th><th>Entrada</th><th>Clima</th><th>Tiempo</th><th>Mejor vuelta</th></tr></thead><tbody>'+hist(g)+'</tbody></table></div></fieldset>';
   h=h0+L(1,"Estadísticas por pista",h)}

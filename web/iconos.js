@@ -4,6 +4,8 @@ var ICO={
 inicio:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
 piloto:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
 moto:'<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 10h5l4.5 6.5"/><path d="M14 10l-1.5-4H16"/><path d="M9 10 7.5 7H5"/>',
+mx:'<circle cx="5" cy="16.5" r="3.5"/><circle cx="19" cy="16.5" r="3.5"/><path d="M5 16.5 8.5 10H13l2.5-3.5H19"/><path d="m13 10 2.5 6.5"/><path d="m16.5 6.5 2.5 10"/><path d="M8.5 10 7 7.5H4"/><path d="M1 22c2.5-1.5 5.5-1.5 8 0"/>',
+enduro:'<path d="m2 20 6-10 4 6 3-4 7 8z"/><circle cx="17.5" cy="5.5" r="2"/>',
 kart:'<circle cx="6" cy="17" r="2.5"/><circle cx="18" cy="17" r="2.5"/><path d="M3.5 17H2v-3l3-2h9l3 2h3l2 3h-1.5"/><path d="M8.5 17h7"/><path d="M10 12V9h3"/>',
 auto:'<path d="M5 17H3v-4l2-5h14l2 5v4h-2"/><path d="M9 17h6"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 12h14"/>',
 sesiones:'<path d="M5 21V4"/><path d="M5 4h13l-2 4 2 4H5"/>',
