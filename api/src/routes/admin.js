@@ -8,6 +8,7 @@ import { calcularDashboard } from '../lib/dashboard.js';
 import { clave, conImagenes, circuitoPublico, usoCircuitos, vincular, vincularLote } from '../lib/circuitos.js';
 import { requireAdmin, revokeSessions, toPublicUser } from '../auth/session.js';
 import { hashPassword } from '../auth/password.js';
+import { fichaVacia, limpiarPerfil } from '../lib/ficha.js';
 
 export const adminRouter = Router();
 adminRouter.use(requireAdmin);
@@ -60,6 +61,8 @@ const Cambio = z.object({
   // null quita la cortesía; la fecha es opcional (sin ella no caduca).
   cortesia: plan.nullable().optional(),
   cortesiaHasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha no válida.').nullable().optional(),
+  email: z.string().trim().toLowerCase().email('Correo no válido.').max(160).optional(),
+  deportes: z.array(z.enum(DEPORTES)).min(1, 'Elige al menos un deporte.').optional(),
 });
 
 adminRouter.patch('/usuarios/:id', asyncHandler(async (req, res) => {
@@ -71,6 +74,12 @@ adminRouter.patch('/usuarios/:id', asyncHandler(async (req, res) => {
     if (d.estado === 'APROBADO' && !u.aprobado) data.aprobado = new Date();
   }
   if (d.plan) data.plan = d.plan;
+  if (d.deportes) data.deportes = [...new Set(d.deportes)];
+  if (d.email && d.email !== u.email) {
+    const otro = await prisma.usuario.findFirst({ where: { OR: [{ email: d.email }, { usuario: d.email }], NOT: { id: u.id } } });
+    if (otro) throw conflict('Ese correo ya está en uso.');
+    data.email = d.email;
+  }
   if (d.cortesia !== undefined) data.cortesia = d.cortesia === 'GRATIS' ? null : d.cortesia;
   if (d.cortesiaHasta !== undefined) data.cortesiaHasta = d.cortesiaHasta ? new Date(d.cortesiaHasta) : null;
   if (data.cortesia === null) data.cortesiaHasta = null;
@@ -79,6 +88,72 @@ adminRouter.patch('/usuarios/:id', asyncHandler(async (req, res) => {
   // Al rechazar una cuenta se la saca de cualquier dispositivo donde esté.
   if (d.estado === 'RECHAZADO') await revokeSessions(u.id);
   res.json({ usuario: resumen(r), planEfectivo: planEfectivo(r) });
+}));
+
+// Alta de un piloto desde el panel (por ejemplo, un alumno de las clases). Queda
+// aprobado; al entrar por primera vez deberá aceptar los términos.
+const NuevoPiloto = z.object({
+  email: z.string().trim().toLowerCase().email('Correo no válido.').max(160),
+  nombre: z.string().trim().min(2, 'Indica el nombre.').max(120),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.').max(200),
+  plan: plan.optional().default('GRATIS'),
+  deportes: z.array(z.enum(DEPORTES)).min(1, 'Elige al menos un deporte.'),
+});
+
+adminRouter.post('/usuarios', asyncHandler(async (req, res) => {
+  const d = parse(NuevoPiloto, req.body);
+  if (await prisma.usuario.findFirst({ where: { OR: [{ email: d.email }, { usuario: d.email }] } })) {
+    throw conflict('Ya existe una cuenta con ese correo.');
+  }
+  const u = await prisma.usuario.create({
+    data: {
+      email: d.email, hash: await hashPassword(d.password), plan: d.plan, deportes: [...new Set(d.deportes)],
+      estado: 'APROBADO', aprobado: new Date(),
+      ficha: { create: { datos: fichaVacia({ nombre: d.nombre, correo: d.email }) } },
+    },
+    include: { ficha: true },
+  });
+  res.status(201).json({ usuario: resumen(u) });
+}));
+
+const Perfil = z.object({ perfil: z.record(z.string(), z.unknown()) });
+
+// Corrige la ficha personal del piloto. Sube la versión para que la app del
+// piloto recargue antes de volver a guardar.
+adminRouter.put('/usuarios/:id/perfil', asyncHandler(async (req, res) => {
+  const { perfil } = parse(Perfil, req.body);
+  const u = await buscar(req.params.id);
+  const datos = { ...(u.ficha?.datos || fichaVacia()), perfil: limpiarPerfil(perfil) };
+  await prisma.ficha.upsert({
+    where: { usuarioId: u.id },
+    update: { datos, version: (u.ficha?.version || 0) + 1 },
+    create: { usuarioId: u.id, datos, version: 1 },
+  });
+  res.json({ ok: true });
+}));
+
+const Clave = z.object({ password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.').max(200) });
+
+adminRouter.put('/usuarios/:id/password', asyncHandler(async (req, res) => {
+  const { password } = parse(Clave, req.body);
+  const u = await buscar(req.params.id);
+  await prisma.usuario.update({ where: { id: u.id }, data: { hash: await hashPassword(password) } });
+  await revokeSessions(u.id);
+  res.json({ ok: true });
+}));
+
+// Elimina una sesión del piloto (por ejemplo, un tiempo falso que distorsiona
+// los rankings).
+adminRouter.delete('/usuarios/:id/sesiones/:sid', asyncHandler(async (req, res) => {
+  const u = await buscar(req.params.id);
+  const ses = Array.isArray(u.ficha?.datos?.sesiones) ? u.ficha.datos.sesiones : [];
+  const quedan = ses.filter((s) => s.id !== req.params.sid);
+  if (quedan.length === ses.length) throw notFound('Sesión no encontrada.');
+  await prisma.ficha.update({
+    where: { usuarioId: u.id },
+    data: { datos: { ...u.ficha.datos, sesiones: quedan }, version: u.ficha.version + 1 },
+  });
+  res.json({ ok: true });
 }));
 
 adminRouter.delete('/usuarios/:id', asyncHandler(async (req, res) => {

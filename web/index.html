@@ -280,6 +280,8 @@ function boot(){hd(0);$("#v").innerHTML='<p class="mu" style="text-align:center;
  api("GET","/api/auth/me").then(function(r){ME=r.user;
   if(ME.rol==="ADMIN"){location.href="/admin";return}
   if(ME.estado!=="APROBADO"){gate("espera");return}
+  // Cuenta creada por Rubus Racing: antes de usarla debe aceptar los términos.
+  if(!ME.consentimiento){gate("terms");return}
   return api("GET","/api/ficha").then(function(f){db=mig(f.datos);VER=f.version;LOCAL=localData();initAct();CIR={};CIRP={};ADC={};RWD=null;MAT=null;hd(1);nav();render();window.scrollTo(0,0);setTimeout(precargar,300)})})
  .catch(function(e){if(e.status===401){ME=null;gate("portada")}else gate("error",e.message)})}
 function logout(){api("POST","/api/auth/logout").catch(function(){}).then(function(){ME=null;db=mig({});VER=0;MAT=null;cur="inicio";gate("portada")})}
@@ -300,11 +302,13 @@ function gate(s,ro){window.scrollTo(0,0);hd(0);var v=$("#v");
  +'<label class="ck"><input type="checkbox" id="ck2"><span>Autorizo el uso de mis datos de salud y de contacto de emergencia como respaldo en las prácticas y actividades de Rubus Racing. <b>(obligatorio)</b></span></label>'
  +'<label class="ck"><input type="checkbox" id="ck3"><span>Quiero recibir información, novedades y eventos de Rubus Racing en el correo de mi perfil. <i>(opcional)</i></span></label>'
  +'<div class="row"><button class="btn" onclick="acepto()">Aceptar y continuar</button><span class="ok" id="tm" style="color:var(--ac)"></span></div></fieldset>';
- v.innerHTML='<h2 style="margin:4px 0 10px;font-size:20px">Términos y condiciones</h2><div class="tc">'+TC+'</div>'+f}
+ v.innerHTML=(ME&&!ME.consentimiento?'<div class="t" style="border-color:var(--ac)"><b>¡Bienvenido a RR Piloto!</b><div class="mu">Rubus Racing creó tu cuenta. Antes de empezar, lee y acepta los términos.</div><div class="row" style="margin:8px 0 0"><button class="btn s" onclick="logout()">Cerrar sesión</button></div></div>':"")+'<h2 style="margin:4px 0 10px;font-size:20px">Términos y condiciones</h2><div class="tc">'+TC+'</div>'+f}
 function acepto(){var m=$("#ckm").checked,tn=$("#tn").value.trim(),tr=$("#tr").value.trim();
  if(!$("#ck1").checked||!$("#ck2").checked){$("#tm").textContent="Debes aceptar las dos casillas obligatorias.";return}
  if(m&&(!tn||!tr)){$("#tm").textContent="Indica nombre y RUT del apoderado.";return}
- REG={terminos:true,salud:true,mailing:$("#ck3").checked,menor:m,tutor:tn,tutorRut:tr,version:TCV};gate("registro")}
+ REG={terminos:true,salud:true,mailing:$("#ck3").checked,menor:m,tutor:tn,tutorRut:tr,version:TCV};
+ if(ME){$("#tm").textContent="Guardando…";api("PUT","/api/cuenta/consentimiento",REG).then(function(r){ME=r.user;REG=null;boot()}).catch(function(e){$("#tm").textContent=e.message});return}
+ gate("registro")}
 function depChk(sel){return '<div class="chk">'+DEPORTES.map(function(d){return '<label><input type="checkbox" data-dep="'+d[0]+'"'+(sel.indexOf(d[0])>=0?" checked":"")+'>'+ic(d[4],18)+esc(d[1])+'</label>'}).join("")+'</div>'}
 function depSel(root){return [].slice.call(root.querySelectorAll("[data-dep]:checked")).map(function(i){return i.dataset.dep})}
 function pickPlan(p){PSEL=p;$("#rp").innerHTML=planCards(PSEL,"pickPlan")}

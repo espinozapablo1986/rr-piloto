@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
-import { asyncHandler, conflict, forbidden, parse } from '../lib/http.js';
+import { asyncHandler, badRequest, conflict, forbidden, parse } from '../lib/http.js';
 import { fichaVacia, sanear } from '../lib/ficha.js';
 import { DEPORTES, nivel, veAnuncios } from '../lib/planes.js';
 import { circuitoPublico, clave, conImagenes } from '../lib/circuitos.js';
@@ -43,6 +43,27 @@ pilotoRouter.put('/ficha', asyncHandler(async (req, res) => {
     await prisma.ficha.create({ data: { usuarioId: req.user.id, datos, version: 1 } });
   }
   res.json({ datos, version: actual + 1 });
+}));
+
+// Aceptación de términos de una cuenta creada desde el panel.
+const Consentimiento = z.object({
+  terminos: z.literal(true, { message: 'Debes aceptar los términos.' }),
+  salud: z.literal(true, { message: 'Debes autorizar el uso de los datos de emergencia.' }),
+  mailing: z.boolean(),
+  menor: z.boolean(),
+  tutor: z.string().trim().max(120).optional().default(''),
+  tutorRut: z.string().trim().max(20).optional().default(''),
+  version: z.string().max(10),
+});
+
+pilotoRouter.put('/cuenta/consentimiento', asyncHandler(async (req, res) => {
+  const d = parse(Consentimiento, req.body);
+  if (d.menor && (!d.tutor || !d.tutorRut)) throw badRequest('Indica nombre y RUT del apoderado.');
+  const u = await prisma.usuario.update({
+    where: { id: req.user.id },
+    data: { consentimiento: { ...d, fecha: new Date().toISOString().slice(0, 10) } },
+  });
+  res.json({ user: toPublicUser(u) });
 }));
 
 const CambioPlan = z.object({ plan: z.enum(['GRATIS', 'PLUS', 'PRO']) });

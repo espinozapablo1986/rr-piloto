@@ -11,6 +11,9 @@ const MAX_TXT = 5000;
 const MAX_IMG = 2_500_000;
 const CLAVE = /^[A-Za-z][A-Za-z0-9]{0,39}$/;
 
+// Perfil editado desde el panel: mismas reglas que la app (solo textos).
+export const limpiarPerfil = (p) => plano(p);
+
 export const fichaVacia = (perfil = {}) => ({ perfil, motos: [], sesiones: [], pistas: {}, foto: '' });
 
 // Objeto plano de textos: descarta claves raras, anida nada y recorta largos.
