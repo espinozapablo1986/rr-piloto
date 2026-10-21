@@ -40,6 +40,17 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
+// Fotos de circuitos: públicas y con caché larga (cada foto nueva tiene otro id).
+app.get('/api/img/circuito/:id', async (req, res, next) => {
+  try {
+    const i = await prisma.circuitoImagen.findUnique({ where: { id: req.params.id }, select: { datos: true, tipo: true } });
+    if (!i) return res.status(404).end();
+    res.set('Content-Type', i.tipo);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(Buffer.from(i.datos));
+  } catch (e) { next(e); }
+});
+
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api', pilotoRouter);

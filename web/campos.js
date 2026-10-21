@@ -25,4 +25,10 @@ var OCULTO={isapre:function(d){return d.prevision==="Fonasa"||d.prevision==="Sin
 var DEPORTES=[["moto","Motociclismo de pista","moto","Motociclismo"],["mx","Motocross","moto","Motocross"],["enduro","Enduro","moto","Enduro"],["supermoto","Supermoto","moto","Supermoto"],["karting","Karting","kart","Karting"],["auto","Automovilismo","auto","Automovilismo"]];
 function dep(id){return DEPORTES.filter(function(d){return d[0]===id})[0]||DEPORTES[0]}
 var VEH={moto:"Moto",kart:"Kart",auto:"Auto"};
+// Medallas, copas y niveles. Debe coincidir con api/src/lib/logros.js:
+// 1 punto por minuto en pista y 30 por cada récord personal roto.
+var PREMIOS={puntosRecord:30,
+ niveles:[[0,"Novato"],[120,"Aprendiz"],[400,"Piloto"],[900,"Competidor"],[1800,"Experto"],[3500,"Élite"],[6000,"Leyenda"]],
+ medallas:[[1,"Bronce","#c27c3e"],[5,"Plata","#9aa3ad"],[10,"Oro","#d4a017"],[25,"Platino","#5fb3c9"],[50,"Diamante","#8a6cf0"]],
+ copas:[[60,"1 hora","#c27c3e"],[300,"5 horas","#9aa3ad"],[600,"10 horas","#d4a017"],[1500,"25 horas","#5fb3c9"],[3000,"50 horas","#8a6cf0"],[6000,"100 horas","#d4232a"]]};
 var TIPOS=["Práctica","Entrenamiento","Clase","Clasificación","Carrera","Campeonato","Exhibición"];

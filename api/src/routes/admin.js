@@ -5,7 +5,7 @@ import { prisma } from '../lib/db.js';
 import { asyncHandler, conflict, notFound, parse } from '../lib/http.js';
 import { DEPORTES, planEfectivo } from '../lib/planes.js';
 import { calcularDashboard } from '../lib/dashboard.js';
-import { clave, usoCircuitos, vincular } from '../lib/circuitos.js';
+import { clave, conImagenes, circuitoPublico, usoCircuitos, vincular } from '../lib/circuitos.js';
 import { requireAdmin, revokeSessions, toPublicUser } from '../auth/session.js';
 
 export const adminRouter = Router();
@@ -200,11 +200,11 @@ const duplicado = async (k, id) => {
 };
 
 adminRouter.get('/circuitos', asyncHandler(async (_req, res) => {
-  const [lista, uso] = await Promise.all([prisma.circuito.findMany({ orderBy: { nombre: 'asc' } }), usoCircuitos()]);
+  const [lista, uso] = await Promise.all([prisma.circuito.findMany({ orderBy: { nombre: 'asc' }, include: conImagenes }), usoCircuitos()]);
   const ids = [...new Set(lista.map((c) => c.propuestoPor).filter(Boolean))];
   const us = await prisma.usuario.findMany({ where: { id: { in: ids } }, include: { ficha: { select: { datos: true } } } });
   const quien = Object.fromEntries(us.map((u) => [u.id, { id: u.id, email: u.email, nombre: u.ficha?.datos?.perfil?.nombre || u.email }]));
-  const conUso = (c) => ({ ...c, sesiones: uso.porId[c.id] || 0, propuesto: c.propuestoPor ? quien[c.propuestoPor] || null : null });
+  const conUso = (c) => ({ ...c, imagenes: circuitoPublico(c).imagenes, sesiones: uso.porId[c.id] || 0, propuesto: c.propuestoPor ? quien[c.propuestoPor] || null : null });
   // Los nombres escritos a mano que ya coinciden con un circuito aprobado
   // también se ofrecen para consolidar.
   const aprob = new Map(lista.filter((c) => c.estado === 'APROBADO').map((c) => [c.clave, c]));
@@ -285,5 +285,82 @@ adminRouter.post('/circuitos/:id/rechazar', asyncHandler(async (req, res) => {
 adminRouter.delete('/circuitos/:id', asyncHandler(async (req, res) => {
   await vincular({ ids: [req.params.id], destino: null });
   await prisma.circuito.deleteMany({ where: { id: req.params.id } });
+  res.json({ ok: true });
+}));
+
+/* Fotos de circuitos (máximo 5, una principal) */
+
+const MAX_FOTOS = 5;
+const Foto = z.object({
+  datos: z.string().regex(/^data:image\/(jpeg|png|webp);base64,/, 'Imagen no válida.').max(2_000_000, 'La imagen es demasiado pesada.'),
+  principal: z.boolean().optional().default(false),
+});
+
+adminRouter.post('/circuitos/:id/imagenes', asyncHandler(async (req, res) => {
+  const d = parse(Foto, req.body);
+  const c = await prisma.circuito.findUnique({ where: { id: req.params.id }, include: { _count: { select: { imagenes: true } } } });
+  if (!c) throw notFound();
+  if (c._count.imagenes >= MAX_FOTOS) throw conflict(`Cada circuito admite hasta ${MAX_FOTOS} fotos.`);
+  const [, tipo, b64] = d.datos.match(/^data:(image\/[a-z]+);base64,(.*)$/s);
+  // La primera foto es la principal; si se marca otra, deja de serlo la anterior.
+  const principal = d.principal || c._count.imagenes === 0;
+  if (principal) await prisma.circuitoImagen.updateMany({ where: { circuitoId: c.id }, data: { principal: false } });
+  const i = await prisma.circuitoImagen.create({
+    data: { circuitoId: c.id, datos: Buffer.from(b64, 'base64'), tipo, principal, orden: c._count.imagenes },
+    select: { id: true },
+  });
+  res.status(201).json({ id: i.id });
+}));
+
+adminRouter.post('/circuitos/:id/imagenes/:img/principal', asyncHandler(async (req, res) => {
+  const i = await prisma.circuitoImagen.findFirst({ where: { id: req.params.img, circuitoId: req.params.id }, select: { id: true } });
+  if (!i) throw notFound();
+  await prisma.circuitoImagen.updateMany({ where: { circuitoId: req.params.id }, data: { principal: false } });
+  await prisma.circuitoImagen.update({ where: { id: i.id }, data: { principal: true } });
+  res.json({ ok: true });
+}));
+
+adminRouter.delete('/circuitos/:id/imagenes/:img', asyncHandler(async (req, res) => {
+  const i = await prisma.circuitoImagen.findFirst({ where: { id: req.params.img, circuitoId: req.params.id } });
+  if (!i) throw notFound();
+  await prisma.circuitoImagen.delete({ where: { id: i.id } });
+  // Si se borró la principal, la siguiente pasa a serlo.
+  if (i.principal) {
+    const otra = await prisma.circuitoImagen.findFirst({ where: { circuitoId: req.params.id }, orderBy: { orden: 'asc' } });
+    if (otra) await prisma.circuitoImagen.update({ where: { id: otra.id }, data: { principal: true } });
+  }
+  res.json({ ok: true });
+}));
+
+/* Recompensas por nivel */
+
+const Recompensa = z.object({
+  nivel: z.number().int().min(1).max(7),
+  titulo: z.string().trim().min(1, 'Falta el título.').max(160),
+  descripcion: z.string().trim().max(1000).optional().default(''),
+  sponsor: z.string().trim().max(120).optional().default(''),
+  codigo: z.string().trim().max(500).optional().default(''),
+  enlace: z.union([z.literal(''), z.string().trim().max(500)
+    .regex(/^https?:\/\/[^\s]+$/i, 'El enlace debe ser una URL completa (https://…).')]).optional().default(''),
+  activo: z.boolean().optional().default(true),
+  orden: z.number().int().min(-9999).max(9999).optional().default(0),
+});
+
+adminRouter.get('/recompensas', asyncHandler(async (_req, res) => {
+  res.json({ items: await prisma.recompensa.findMany({ orderBy: [{ nivel: 'asc' }, { orden: 'asc' }] }) });
+}));
+
+adminRouter.post('/recompensas', asyncHandler(async (req, res) => {
+  res.status(201).json({ item: await prisma.recompensa.create({ data: parse(Recompensa, req.body) }) });
+}));
+
+adminRouter.put('/recompensas/:id', asyncHandler(async (req, res) => {
+  const data = parse(Recompensa, req.body);
+  if (!(await prisma.recompensa.findUnique({ where: { id: req.params.id } }))) throw notFound();
+  res.json({ item: await prisma.recompensa.update({ where: { id: req.params.id }, data }) });
+}));
+
+adminRouter.delete('/recompensas/:id', asyncHandler(async (req, res) => {
+  await prisma.recompensa.deleteMany({ where: { id: req.params.id } });
   res.json({ ok: true });
 }));

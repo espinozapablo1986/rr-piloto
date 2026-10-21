@@ -41,6 +41,11 @@ enlace:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-
 cerrar:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
 basura:'<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
 casco:'<path d="M3 15a9 9 0 0 1 18 0v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 14h9l3-4h5.5"/>',
+medalla:'<path d="M7.2 2h9.6L14 9.2"/><path d="M10 9.2 7.2 2"/><circle cx="12" cy="15" r="6"/><path d="m12 12.2.9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>',
+copa:'<path d="M7 3h10v6a5 5 0 0 1-10 0z"/><path d="M17 4.5h2.5a2 2 0 0 1 0 4H17"/><path d="M7 4.5H4.5a2 2 0 0 0 0 4H7"/><path d="M12 14v4"/><path d="M8 21h8l-1-3H9z"/>',
+premio:'<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13"/><path d="M3 13h18"/><path d="M12 8 9 3.5a2 2 0 0 0-3 2.5L8 8"/><path d="m12 8 3-4.5a2 2 0 0 1 3 2.5L16 8"/>',
+metricas:'<path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/>',
+cuenta:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3.5"/><path d="M6.2 18.5a7 7 0 0 1 11.6 0"/>',
 deportes:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'
 };
 function ic(n,s){return '<svg class="ic" viewBox="0 0 24 24" width="'+(s||18)+'" height="'+(s||18)+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO[n]||"")+'</svg>'}

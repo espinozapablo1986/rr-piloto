@@ -4,9 +4,14 @@ import { prisma } from './db.js';
 // «autódromo codegua» son el mismo.
 export const clave = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
+// Fotos sin el binario, ordenadas con la principal primero.
+export const conImagenes = { imagenes: { select: { id: true, principal: true, orden: true }, orderBy: [{ principal: 'desc' }, { orden: 'asc' }, { creado: 'asc' }] } };
+const img = (i) => ({ id: i.id, principal: i.principal, url: `/api/img/circuito/${i.id}` });
+
 const publico = (c) => ({
   id: c.id, nombre: c.nombre, ciudad: c.ciudad, region: c.region, pais: c.pais,
   deportes: c.deportes, trazados: c.trazados, longitud: c.longitud, estado: c.estado,
+  imagenes: (c.imagenes || []).map(img),
 });
 export const circuitoPublico = publico;
 

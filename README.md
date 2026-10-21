@@ -22,6 +22,12 @@ Bajar de plan no borra datos: lo que el plan ya no permite editar queda congelad
 
 Los pilotos eligen el circuito desde un catálogo que se administra en `/admin → Pistas` (nombre, ubicación, deportes, trazados y longitud). Si falta uno, el piloto lo propone desde la sesión y lo usa de inmediato como provisorio; el administrador lo aprueba (corrigiendo los datos), lo fusiona con uno existente o lo rechaza. Al aprobar o fusionar, todas las sesiones que lo usaban quedan consolidadas con el nombre oficial. Los nombres que se escribieron a mano antes del catálogo aparecen en la misma pestaña para sumarlos o asignarlos.
 
+Cada circuito admite hasta 5 fotos: la principal es la vista aérea, que el piloto ve al elegirlo, aparece en miniatura en cada sesión y es el fondo por defecto de las imágenes para redes. Las fotos se sirven desde `/api/img/circuito/:id` con caché larga.
+
+## Medallas, copas y recompensas
+
+El piloto suma 1 punto por minuto en pista y 30 por cada récord personal (mejorar su mejor vuelta en un circuito). Gana medallas por récords y copas por tiempo en pista, y sube de nivel (de Novato a Leyenda). El módulo Premios muestra su progreso; los premios y descuentos por nivel, creados en `/admin → Recompensas`, son solo para cuentas Plus y Pro, y el servidor solo entrega el código cuando el nivel calculado lo desbloquea. Los umbrales están en `web/campos.js` (PREMIOS) y `api/src/lib/logros.js`, que deben coincidir.
+
 ## Publicidad
 
 Los pilotos Gratis y Plus ven anuncios de sponsors en Inicio, Sesiones y Datos. Los Pro no los ven, salvo que los activen en Datos → Anuncios de sponsors. Los anuncios se crean en `/admin → Anuncios`, con lugares, deportes, vigencia y peso, y miden impresiones y clics.

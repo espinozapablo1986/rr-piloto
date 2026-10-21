@@ -146,9 +146,42 @@ model Circuito {
   estado       EstadoCircuito @default(APROBADO)
   propuestoPor String?
   nota         String?
+  imagenes     CircuitoImagen[]
   creado       DateTime       @default(now())
   actualizado  DateTime       @updatedAt
 
   @@index([clave])
   @@index([estado])
+}
+
+// Fotos de un circuito (máximo 5): una aérea principal y otras de apoyo. Se
+// guardan como binario y se sirven en /api/img/circuito/:id con caché larga.
+model CircuitoImagen {
+  id         String   @id @default(cuid())
+  circuitoId String
+  circuito   Circuito @relation(fields: [circuitoId], references: [id], onDelete: Cascade)
+  datos      Bytes
+  tipo       String   @default("image/jpeg")
+  principal  Boolean  @default(false)
+  orden      Int      @default(0)
+  creado     DateTime @default(now())
+
+  @@index([circuitoId])
+}
+
+// Premios y descuentos que se desbloquean al llegar a un nivel. Solo para
+// cuentas de pago (Plus y Pro).
+model Recompensa {
+  id          String   @id @default(cuid())
+  nivel       Int
+  titulo      String
+  descripcion String?
+  sponsor     String?
+  // Código o instrucciones: solo se entregan a quien ya desbloqueó el nivel.
+  codigo      String?
+  enlace      String?
+  activo      Boolean  @default(true)
+  orden       Int      @default(0)
+  creado      DateTime @default(now())
+  actualizado DateTime @updatedAt
 }
