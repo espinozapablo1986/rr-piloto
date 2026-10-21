@@ -36,7 +36,9 @@ model Usuario {
   // Los pilotos siempre tienen correo; un administrador puede tener solo
   // nombre de usuario. Se inicia sesión con cualquiera de los dos.
   email   String? @unique
-  usuario String? @unique
+  // Sin restricción única en la base: la API impide repetirlo (ver
+  // routes/admin.js) y así agregar la columna no exige aceptar pérdida de datos.
+  usuario String?
   nombre  String?
   hash   String
   rol    Rol    @default(PILOTO)
@@ -62,6 +64,8 @@ model Usuario {
 
   ficha   Ficha?
   accesos Acceso[]
+
+  @@index([usuario])
 }
 
 // Todo lo que el piloto registra en la app (perfil, motos, sesiones, foto,
