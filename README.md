@@ -15,3 +15,13 @@ Prototipo. Los datos se guardan en el dispositivo de cada piloto (localStorage).
 ## Uso
 
 Abrir `index.html` en el navegador o publicarlo en cualquier hosting estático.
+
+## Despliegue
+
+Publicado en https://rrpiloto.asdf123.cl, en el VPS 159.195.7.134, detrás del Nginx Proxy Manager. El stack vive en `/opt/stacks/rr-piloto` y el Proxy Manager reenvía al contenedor `rr-piloto`, puerto 80.
+
+Para publicar cambios, haz push a `main` y luego:
+
+```bash
+ssh root@159.195.7.134 '/opt/stacks/rr-piloto/deploy.sh'
+```

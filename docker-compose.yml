@@ -1,0 +1,19 @@
+# RR Piloto — app estática servida detrás del Nginx Proxy Manager.
+#
+# El contenedor no publica puertos: el Proxy Manager lo alcanza por la red
+# nginx_default con el nombre `rr-piloto` y el puerto 80.
+#
+#   docker compose up -d --build
+
+services:
+  web:
+    build: .
+    image: rr-piloto:latest
+    container_name: rr-piloto
+    restart: unless-stopped
+    networks:
+      - nginx_default
+
+networks:
+  nginx_default:
+    external: true
