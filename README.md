@@ -18,6 +18,10 @@ El piloto cambia de plan cuando quiere. El administrador también puede cambiár
 
 Bajar de plan no borra datos: lo que el plan ya no permite editar queda congelado y se conserva.
 
+## Circuitos
+
+Los pilotos eligen el circuito desde un catálogo que se administra en `/admin → Pistas` (nombre, ubicación, deportes, trazados y longitud). Si falta uno, el piloto lo propone desde la sesión y lo usa de inmediato como provisorio; el administrador lo aprueba (corrigiendo los datos), lo fusiona con uno existente o lo rechaza. Al aprobar o fusionar, todas las sesiones que lo usaban quedan consolidadas con el nombre oficial. Los nombres que se escribieron a mano antes del catálogo aparecen en la misma pestaña para sumarlos o asignarlos.
+
 ## Publicidad
 
 Los pilotos Gratis y Plus ven anuncios de sponsors en Inicio, Sesiones y Datos. Los Pro no los ven, salvo que los activen en Datos → Anuncios de sponsors. Los anuncios se crean en `/admin → Anuncios`, con lugares, deportes, vigencia y peso, y miden impresiones y clics.

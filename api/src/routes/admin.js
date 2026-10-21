@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
-import { asyncHandler, notFound, parse } from '../lib/http.js';
+import { asyncHandler, conflict, notFound, parse } from '../lib/http.js';
 import { DEPORTES, planEfectivo } from '../lib/planes.js';
 import { calcularDashboard } from '../lib/dashboard.js';
+import { clave, usoCircuitos, vincular } from '../lib/circuitos.js';
 import { requireAdmin, revokeSessions, toPublicUser } from '../auth/session.js';
 
 export const adminRouter = Router();
@@ -173,5 +174,116 @@ adminRouter.post('/anuncios/:id/reiniciar', asyncHandler(async (req, res) => {
 
 adminRouter.delete('/anuncios/:id', asyncHandler(async (req, res) => {
   await prisma.anuncio.deleteMany({ where: { id: req.params.id } });
+  res.json({ ok: true });
+}));
+
+/* Catálogo de circuitos y solicitudes de los pilotos */
+
+const Circuito = z.object({
+  nombre: z.string().trim().min(2, 'Falta el nombre.').max(120),
+  ciudad: z.string().trim().max(120).optional().default(''),
+  region: z.string().trim().max(120).optional().default(''),
+  pais: z.string().trim().max(60).optional().default('Chile'),
+  deportes: z.array(z.enum(DEPORTES)).optional().default([]),
+  trazados: z.array(z.string().trim().min(1).max(60)).max(20).optional().default([]),
+  longitud: z.number().int().min(0).max(100000).nullable().optional().default(null),
+  // Nombres escritos a mano por los pilotos que se consolidan en este circuito.
+  vincular: z.array(z.string().max(160)).max(50).optional().default([]),
+});
+const cDatos = (d) => ({
+  nombre: d.nombre.replace(/\s+/g, ' '), clave: clave(d.nombre), ciudad: d.ciudad || null, region: d.region || null,
+  pais: d.pais || null, deportes: [...new Set(d.deportes)], trazados: [...new Set(d.trazados)], longitud: d.longitud,
+});
+const duplicado = async (k, id) => {
+  const o = await prisma.circuito.findFirst({ where: { clave: k, estado: 'APROBADO', ...(id ? { NOT: { id } } : {}) } });
+  if (o) throw conflict(`Ya existe «${o.nombre}» en el catálogo. Fusiona en lugar de duplicar.`);
+};
+
+adminRouter.get('/circuitos', asyncHandler(async (_req, res) => {
+  const [lista, uso] = await Promise.all([prisma.circuito.findMany({ orderBy: { nombre: 'asc' } }), usoCircuitos()]);
+  const ids = [...new Set(lista.map((c) => c.propuestoPor).filter(Boolean))];
+  const us = await prisma.usuario.findMany({ where: { id: { in: ids } }, include: { ficha: { select: { datos: true } } } });
+  const quien = Object.fromEntries(us.map((u) => [u.id, { id: u.id, email: u.email, nombre: u.ficha?.datos?.perfil?.nombre || u.email }]));
+  const conUso = (c) => ({ ...c, sesiones: uso.porId[c.id] || 0, propuesto: c.propuestoPor ? quien[c.propuestoPor] || null : null });
+  // Los nombres escritos a mano que ya coinciden con un circuito aprobado
+  // también se ofrecen para consolidar.
+  const aprob = new Map(lista.filter((c) => c.estado === 'APROBADO').map((c) => [c.clave, c]));
+  res.json({
+    catalogo: lista.filter((c) => c.estado === 'APROBADO').map(conUso),
+    solicitudes: lista.filter((c) => c.estado === 'PROPUESTO').map(conUso),
+    sueltos: uso.sueltos.map((x) => ({ ...x, coincide: aprob.get(x.clave)?.id || null })),
+  });
+}));
+
+adminRouter.post('/circuitos', asyncHandler(async (req, res) => {
+  const d = parse(Circuito, req.body);
+  await duplicado(clave(d.nombre));
+  const c = await prisma.circuito.create({ data: { ...cDatos(d), estado: 'APROBADO' } });
+  const n = await vincular({ nombres: [...d.vincular, d.nombre], destino: c });
+  res.status(201).json({ circuito: c, vinculadas: n });
+}));
+
+adminRouter.put('/circuitos/:id', asyncHandler(async (req, res) => {
+  const d = parse(Circuito, req.body);
+  const c0 = await prisma.circuito.findUnique({ where: { id: req.params.id } });
+  if (!c0) throw notFound();
+  await duplicado(clave(d.nombre), c0.id);
+  const c = await prisma.circuito.update({ where: { id: c0.id }, data: cDatos(d) });
+  // Un cambio de nombre se propaga a las sesiones que ya lo usan.
+  const n = await vincular({ ids: [c.id], nombres: d.vincular, destino: c });
+  res.json({ circuito: c, vinculadas: n });
+}));
+
+// Aprobar una propuesta: se publica (con los datos que corrija el admin) y las
+// sesiones que la usaban quedan consolidadas.
+adminRouter.post('/circuitos/:id/aprobar', asyncHandler(async (req, res) => {
+  const d = parse(Circuito, req.body);
+  const p = await prisma.circuito.findFirst({ where: { id: req.params.id, estado: 'PROPUESTO' } });
+  if (!p) throw notFound('Solicitud no encontrada.');
+  await duplicado(clave(d.nombre), p.id);
+  const c = await prisma.circuito.update({ where: { id: p.id }, data: { ...cDatos(d), estado: 'APROBADO' } });
+  const n = await vincular({ ids: [c.id], nombres: d.vincular, destino: c });
+  res.json({ circuito: c, vinculadas: n });
+}));
+
+const Fusion = z.object({ destinoId: z.string().min(1) });
+
+// Fusionar una propuesta (o un nombre escrito a mano) en un circuito existente.
+adminRouter.post('/circuitos/:id/fusionar', asyncHandler(async (req, res) => {
+  const { destinoId } = parse(Fusion, req.body);
+  const [p, dst] = await Promise.all([
+    prisma.circuito.findUnique({ where: { id: req.params.id } }),
+    prisma.circuito.findFirst({ where: { id: destinoId, estado: 'APROBADO' } }),
+  ]);
+  if (!p || !dst || p.id === dst.id) throw notFound('Circuito no encontrado.');
+  const n = await vincular({ ids: [p.id], destino: dst });
+  if (p.trazados.length) {
+    await prisma.circuito.update({ where: { id: dst.id }, data: { trazados: [...new Set([...dst.trazados, ...p.trazados])] } });
+  }
+  await prisma.circuito.delete({ where: { id: p.id } });
+  res.json({ ok: true, vinculadas: n });
+}));
+
+const Suelto = z.object({ nombre: z.string().min(1).max(160), destinoId: z.string().min(1) });
+
+adminRouter.post('/circuitos/vincular', asyncHandler(async (req, res) => {
+  const d = parse(Suelto, req.body);
+  const dst = await prisma.circuito.findFirst({ where: { id: d.destinoId, estado: 'APROBADO' } });
+  if (!dst) throw notFound('Circuito no encontrado.');
+  res.json({ ok: true, vinculadas: await vincular({ nombres: [d.nombre], destino: dst }) });
+}));
+
+// Rechazar: las sesiones conservan el nombre escrito, sin circuito asignado.
+adminRouter.post('/circuitos/:id/rechazar', asyncHandler(async (req, res) => {
+  const p = await prisma.circuito.findFirst({ where: { id: req.params.id, estado: 'PROPUESTO' } });
+  if (!p) throw notFound('Solicitud no encontrada.');
+  await vincular({ ids: [p.id], destino: null });
+  await prisma.circuito.update({ where: { id: p.id }, data: { estado: 'RECHAZADO' } });
+  res.json({ ok: true });
+}));
+
+adminRouter.delete('/circuitos/:id', asyncHandler(async (req, res) => {
+  await vincular({ ids: [req.params.id], destino: null });
+  await prisma.circuito.deleteMany({ where: { id: req.params.id } });
   res.json({ ok: true });
 }));

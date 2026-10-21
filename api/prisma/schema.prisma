@@ -122,3 +122,33 @@ model Anuncio {
   creado      DateTime  @default(now())
   actualizado DateTime  @updatedAt
 }
+
+// Catálogo de circuitos. Los pilotos eligen de aquí en vez de escribir el
+// nombre; si falta uno lo proponen (PROPUESTO, visible solo para quien lo
+// propuso) y el administrador lo aprueba, lo fusiona con otro o lo rechaza.
+enum EstadoCircuito {
+  PROPUESTO
+  APROBADO
+  RECHAZADO
+}
+
+model Circuito {
+  id           String         @id @default(cuid())
+  nombre       String
+  // Nombre normalizado (minúsculas, sin espacios extremos) para evitar duplicados.
+  clave        String
+  ciudad       String?
+  region       String?
+  pais         String?        @default("Chile")
+  deportes     String[]       @default([])
+  trazados     String[]       @default([])
+  longitud     Int?
+  estado       EstadoCircuito @default(APROBADO)
+  propuestoPor String?
+  nota         String?
+  creado       DateTime       @default(now())
+  actualizado  DateTime       @updatedAt
+
+  @@index([clave])
+  @@index([estado])
+}

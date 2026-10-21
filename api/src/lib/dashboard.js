@@ -32,13 +32,14 @@ export const calcularDashboard = async ({ deporte, dias }) => {
   const d60 = iso(new Date(ahora - 60 * DIA));
   const meses = ultimosMeses(12);
 
-  const [us, ads, contenido] = await Promise.all([
+  const [us, ads, contenido, circuitosPendientes] = await Promise.all([
     prisma.usuario.findMany({ where: { rol: 'PILOTO' }, include: { ficha: true } }),
     prisma.anuncio.findMany({
       select: { id: true, sponsor: true, titulo: true, activo: true, impresiones: true, clics: true },
       orderBy: { impresiones: 'desc' },
     }),
     prisma.contenido.count({ where: { publicado: true } }),
+    prisma.circuito.count({ where: { estado: 'PROPUESTO' } }),
   ]);
 
   const k = {
@@ -144,7 +145,7 @@ export const calcularDashboard = async ({ deporte, dias }) => {
 
   return {
     filtro: { deporte: deporte || '', dias: dias || 0, desde },
-    kpis: { ...k, circuitos: circuitos.length, contenido },
+    kpis: { ...k, circuitos: circuitos.length, contenido, circuitosPendientes },
     porDeporte,
     series: {
       registros: meses.map((m) => ({ m, n: registros[m] })),

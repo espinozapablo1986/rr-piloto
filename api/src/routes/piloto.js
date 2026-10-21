@@ -5,6 +5,7 @@ import { prisma } from '../lib/db.js';
 import { asyncHandler, conflict, forbidden, parse } from '../lib/http.js';
 import { fichaVacia, sanear } from '../lib/ficha.js';
 import { DEPORTES, nivel, veAnuncios } from '../lib/planes.js';
+import { circuitoPublico, clave } from '../lib/circuitos.js';
 import { COOKIE_NAME, cookieOptions, requireAprobado, toPublicUser } from '../auth/session.js';
 
 // Todo lo que hace un piloto con su cuenta ya aprobada.
@@ -122,6 +123,53 @@ pilotoRouter.get('/anuncios', asyncHandler(async (req, res) => {
 pilotoRouter.post('/anuncios/:id/clic', asyncHandler(async (req, res) => {
   await prisma.anuncio.updateMany({ where: { id: req.params.id }, data: { clics: { increment: 1 } } });
   res.json({ ok: true });
+}));
+
+/* Circuitos: catálogo aprobado más las propuestas propias en revisión */
+
+pilotoRouter.get('/circuitos', asyncHandler(async (req, res) => {
+  const deporte = DEPORTES.includes(req.query.deporte) ? req.query.deporte : '';
+  const lista = await prisma.circuito.findMany({
+    where: {
+      AND: [
+        { OR: [{ estado: 'APROBADO' }, { estado: 'PROPUESTO', propuestoPor: req.user.id }] },
+        // Sin deportes asignados = sirve para todos.
+        ...(deporte ? [{ OR: [{ deportes: { isEmpty: true } }, { deportes: { has: deporte } }] }] : []),
+      ],
+    },
+    orderBy: { nombre: 'asc' },
+  });
+  res.json({ circuitos: lista.map(circuitoPublico) });
+}));
+
+const Propuesta = z.object({
+  nombre: z.string().trim().min(2, 'Indica el nombre del circuito.').max(120),
+  ciudad: z.string().trim().max(120).optional().default(''),
+  pais: z.string().trim().max(60).optional().default('Chile'),
+  trazados: z.array(z.string().trim().min(1).max(60)).max(10).optional().default([]),
+  nota: z.string().trim().max(500).optional().default(''),
+  deporte: z.enum(DEPORTES),
+});
+
+// El circuito propuesto se puede usar de inmediato en las sesiones del piloto;
+// queda provisorio hasta que el administrador lo consolida.
+pilotoRouter.post('/circuitos', asyncHandler(async (req, res) => {
+  const d = parse(Propuesta, req.body);
+  const k = clave(d.nombre);
+  const existe = await prisma.circuito.findFirst({
+    where: { clave: k, OR: [{ estado: 'APROBADO' }, { estado: 'PROPUESTO', propuestoPor: req.user.id }] },
+  });
+  if (existe) return res.json({ circuito: circuitoPublico(existe), existente: true });
+  const pendientes = await prisma.circuito.count({ where: { estado: 'PROPUESTO', propuestoPor: req.user.id } });
+  if (pendientes >= 10) throw forbidden('Tienes 10 circuitos en revisión. Espera a que Rubus Racing los revise.');
+  const c = await prisma.circuito.create({
+    data: {
+      nombre: d.nombre.replace(/\s+/g, ' '), clave: k, ciudad: d.ciudad || null, pais: d.pais || null,
+      trazados: [...new Set(d.trazados)], deportes: [d.deporte], estado: 'PROPUESTO',
+      propuestoPor: req.user.id, nota: d.nota || null,
+    },
+  });
+  res.status(201).json({ circuito: circuitoPublico(c) });
 }));
 
 pilotoRouter.get('/contenido', asyncHandler(async (req, res) => {

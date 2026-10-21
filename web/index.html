@@ -256,7 +256,7 @@ function boot(){hd(0);$("#v").innerHTML='<p class="mu" style="text-align:center;
  api("GET","/api/auth/me").then(function(r){ME=r.user;
   if(ME.rol==="ADMIN"){location.href="/admin";return}
   if(ME.estado!=="APROBADO"){gate("espera");return}
-  return api("GET","/api/ficha").then(function(f){db=mig(f.datos);VER=f.version;LOCAL=localData();initAct();hd(1);nav();render();window.scrollTo(0,0)})})
+  return api("GET","/api/ficha").then(function(f){db=mig(f.datos);VER=f.version;LOCAL=localData();initAct();CIR={};CIRP={};hd(1);nav();render();window.scrollTo(0,0)})})
  .catch(function(e){if(e.status===401){ME=null;gate("portada")}else gate("error",e.message)})}
 function logout(){api("POST","/api/auth/logout").catch(function(){}).then(function(){ME=null;db=mig({});VER=0;MAT=null;cur="inicio";gate("portada")})}
 function gate(s,ro){window.scrollTo(0,0);hd(0);var v=$("#v");
@@ -342,7 +342,7 @@ function delMoto(){var b=$("#dm");if(pend==="m"){db.motos=db.motos.filter(functi
 
 /* SESIONES */
 var KEEP=["motoId","pinon","corona","neum","combustible","clima","trazado","sentido"],NOE=["motoId","pinon","corona","neum","combustible"];
-function enRow(e){e=e||{};function F(f){return field(f,e).replace(/ name="/g,' data-k="')}
+function enRow(e){e=e||{};function F(f){return field(f,e).replace(/ name="/g,' data-k="').replace(' data-k="trazado"',' data-k="trazado" list="trz"')}
  var ms='<label>'+V()+' utilizado<select data-k="motoId" onchange="motoSel(this)"><option value="">— Elegir '+V().toLowerCase()+' —</option>'+MV().map(function(m){return '<option value="'+m.id+'"'+(e.motoId===m.id?" selected":"")+'>'+esc(mName(m))+'</option>'}).join("")+'</select></label>';
  return '<details class="en" open><summary></summary>'
  +'<fieldset><legend>1) Tiempos de la entrada</legend><div class="g">'+F(["minutos","Tiempo en pista (min)","number"])+F(["vueltas","Vueltas","number"])+F(["mejor","Mejor vuelta (m:ss.mmm)"])+F(["clima","Clima",["","Seco","Nublado","Húmedo","Lluvia"]])+F(["posicion","Posición (si aplica)","number"])+'</div></fieldset>'
@@ -352,6 +352,31 @@ function enRow(e){e=e||{};function F(f){return field(f,e).replace(/ name="/g,' d
  +L(1,"5) Rendimiento del piloto",'<div class="g">'+F(["nivel","Autoevaluación",["","1 · Bajo","2","3 · Normal","4","5 · Excelente"]])+F(["mejorado","Aspectos mejorados","textarea","full"])+F(["mejorar","Aspectos a mejorar","textarea","full"])+'</div>')
  +L(1,"6) Estadísticas en este circuito",'<div class="cs"></div>')
  +'<div class="row">'+'<button type="button" class="btn" onclick="share(this)">'+ic("compartir")+'Compartir imagen</button>'+'<button type="button" class="btn s" onclick="this.closest(\'.en\').remove();upCS()">Quitar entrada</button></div></details>'}
+/* CIRCUITOS: se eligen del catálogo; si falta uno, el piloto lo propone */
+var CIR={},CIRP={},PG=null;
+function cargarCir(cb){api("GET","/api/circuitos?deporte="+ACT).then(function(r){CIR[ACT]=r.circuitos;r.circuitos.forEach(function(c){CIRP[c.id]=c})}).catch(function(e){CIR[ACT]=[];toast(e.message)}).then(cb)}
+// Selector de circuito. Las sesiones antiguas con el nombre escrito a mano lo
+// conservan como opción; en el plan Gratis solo se ofrece su única pista.
+function cirSel(e){var L=CIR[ACT]||[],id=e.circuitoId||"",n=e.circuito||"";
+ if(PG)L=L.filter(function(c){return nk(c.nombre)===nk(PG)});
+ var sel=L.filter(function(c){return c.id===id})[0]||(!id&&n?L.filter(function(c){return nk(c.nombre)===nk(n)})[0]:null);
+ var o='<option value="">— Elige el circuito —</option>'+L.map(function(c){return '<option value="'+c.id+'" data-n="'+esc(c.nombre)+'"'+(sel===c?" selected":"")+'>'+esc(c.nombre)+(c.ciudad?" · "+esc(c.ciudad):"")+(c.estado==="PROPUESTO"?" (en revisión)":"")+'</option>'}).join("");
+ if(!sel&&n)o+='<option value="txt" data-n="'+esc(n)+'" selected>'+esc(n)+'</option>';
+ if(!PG||(!sel&&!n))o+='<option value="nuevo">+ No está en la lista: proponer un circuito</option>';
+ return '<label id="cirl">Circuito<select name="circuitoId" onchange="cirCh(this)">'+o+'</select><input type="hidden" name="circuito" value="'+esc(sel?sel.nombre:n)+'">'+(PG?'<span class="mu" style="display:block;margin-top:4px">Plan Gratis: una sola pista. <button type="button" class="lnk" onclick="go(\'plan\')">Más pistas con Plus</button></span>':'<span class="mu" style="display:block;margin-top:4px">¿No aparece? Elige «proponer un circuito» al final de la lista.</span>')+'</label>'}
+function cirCh(sel){if(sel.value==="nuevo"){proponer(sel);return}var op=sel.selectedOptions[0];sel.form.elements.circuito.value=op&&op.dataset.n||"";sel.dataset.prev=sel.value;trz();upCS()}
+// Sugerencias de trazado según el circuito elegido.
+function trz(){var f=$("#f"),c=f&&CIRP[f.elements.circuitoId&&f.elements.circuitoId.value],d=$("#trz");if(d)d.innerHTML=(c?c.trazados:[]).map(function(t){return '<option value="'+esc(t)+'">'}).join("")}
+function proponer(sel){var d=document.createElement("div");d.className="ovl";
+ d.innerHTML='<div class="shc"><h3 class="ttl" style="margin:0 0 6px">'+ic("mapa")+'Proponer un circuito</h3><p class="mu" style="margin:0 0 12px">Podrás usarlo de inmediato. Rubus Racing lo revisará y lo sumará al catálogo para todos los pilotos.</p><form id="pcf"><label>Nombre del circuito<input name="nombre" required maxlength="120" placeholder="Ej. Autódromo Internacional de Codegua"></label><div class="g"><label>Ciudad o comuna<input name="ciudad" maxlength="120"></label><label>País<input name="pais" value="Chile" maxlength="60"></label></div><label>Trazados (opcional, separados por coma)<input name="trazados" placeholder="Completo, Corto"></label><label>Comentario para Rubus Racing (opcional)<textarea name="nota" maxlength="500" style="min-height:60px"></textarea></label><div class="row"><button class="btn" type="submit">'+ic("ok")+'Usar y enviar a revisión</button><button class="btn s" type="button" id="pcx">Cancelar</button><span class="ok" id="pcm" style="color:var(--ac)"></span></div></form></div>';
+ document.body.appendChild(d);d.querySelector("[name=nombre]").focus();
+ d.querySelector("#pcx").onclick=function(){d.remove();sel.value=sel.dataset.prev||"";};
+ d.querySelector("#pcf").onsubmit=function(ev){ev.preventDefault();var o=read(ev.target);
+  api("POST","/api/circuitos",{nombre:o.nombre,ciudad:o.ciudad,pais:o.pais,nota:o.nota,deporte:ACT,trazados:o.trazados.split(",").map(function(t){return t.trim()}).filter(Boolean)}).then(function(r){var c=r.circuito;
+   if(!CIRP[c.id]){CIR[ACT].push(c);CIR[ACT].sort(function(a,b){return a.nombre.localeCompare(b.nombre)})}CIRP[c.id]=c;d.remove();
+   $("#cirl").outerHTML=cirSel({circuitoId:c.id,circuito:c.nombre});trz();upCS();
+   toast(r.existente?"Ese circuito ya estaba en la lista: lo seleccionamos.":"Circuito agregado. Rubus Racing lo revisará.")}).catch(function(x){$("#pcm").textContent=x.message})}}
+
 // La única pista del plan Gratis: la de la sesión más antigua (igual que el servidor).
 function pistaG(){var s=db.sesiones.slice().sort(function(a,b){return String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.id).localeCompare(String(b.id))})[0];return s?s.circuito:null}
 function eVals(el){var o={};el.querySelectorAll("[data-k]").forEach(function(i){o[i.dataset.k]=i.value});return o}
@@ -367,18 +392,20 @@ function motoSel(sel){var m=db.motos.filter(function(x){return x.id===sel.value}
 
 function ses(){var v=$("#v");
  if(editing!=null){var e=editing==="new"?{fecha:new Date().toISOString().slice(0,10),entradas:[{}]}:db.sesiones.filter(function(s){return s.id===editing})[0];
-  var cl=groups().map(function(g){return '<option value="'+esc(g.n)+'">'}).join(""),pg=niv()<1?pistaG():null,ci=pg&&editing==="new"?pg:e.circuito;
-  v.innerHTML='<form id="f" oninput="dq()"><datalist id="circs">'+cl+'</datalist>'
-  +'<fieldset><legend>Datos de la sesión</legend><div class="g">'+field(["fecha","Fecha","date"],e)+'<label>Circuito<input name="circuito" list="circs" value="'+esc(ci)+'"'+(pg?' readonly':'')+'>'+(pg?'<span class="mu" style="display:block;margin-top:4px">Plan Gratis: una sola pista. <button type="button" class="lnk" onclick="go(\'plan\')">Más pistas con Plus</button></span>':'')+'</label>'+field(["tipo","Tipo",TIPOS],e)+field(["evento","Nombre del evento (campeonato, exhibición, práctica, clase…)"],e)+'</div></fieldset>'
+  if(!CIR[ACT]){v.innerHTML='<p class="mu">Cargando circuitos…</p>';cargarCir(ses);return}
+  PG=niv()<1?pistaG():null;
+  v.innerHTML='<form id="f" oninput="dq()"><datalist id="trz"></datalist>'
+  +'<fieldset><legend>Datos de la sesión</legend><div class="g">'+field(["fecha","Fecha","date"],e)+cirSel(editing==="new"&&PG?{circuito:PG}:e)+field(["tipo","Tipo",TIPOS],e)+field(["evento","Nombre del evento (campeonato, exhibición, práctica, clase…)"],e)+'</div></fieldset>'
   +'<div id="ent">'+(e.entradas&&e.entradas.length?e.entradas:[{}]).map(function(x){return enRow(x)}).join("")+'</div>'
   +'<div class="row"><button type="button" class="btn add" onclick="addEn()">'+ic("mas")+'Agregar entrada a pista</button></div>'
   +'<div class="row"><button class="btn" type="submit">Guardar sesión</button><button class="btn s" type="button" onclick="editing=null;ses()">Cancelar</button><span class="ok" id="ok"></span></div></form>';
-  upCS();
-  $("#f").onsubmit=function(ev){ev.preventDefault();var o=read(ev.target);if(!o.circuito.trim()){$("#ok").textContent="Falta el circuito";return}o.entradas=rows();var pb=cStats(o.circuito,editing==="new"?null:editing).b,nb=sTot(o).b;flash=nb?(pb==null?ic("sesiones")+" Primera marca en "+esc(o.circuito)+": "+fmt(nb):nb<pb?ic("llama")+" ¡Nuevo récord en "+esc(o.circuito)+": "+fmt(nb)+"!":ic("ok")+" Sesión guardada"):ic("ok")+" Sesión guardada";if(editing==="new"){o.id=uid();o.deporte=ACT;db.sesiones.push(o)}else{o.id=editing;o.deporte=e.deporte||ACT;db.sesiones[db.sesiones.indexOf(e)]=o}editing=null;save();ses()};return}
+  upCS();trz();
+  $("#f").onsubmit=function(ev){ev.preventDefault();var o=read(ev.target);if(!o.circuitoId||!o.circuito.trim()){$("#ok").textContent="Elige el circuito";return}if(o.circuitoId==="txt")delete o.circuitoId;o.entradas=rows();var pb=cStats(o.circuito,editing==="new"?null:editing).b,nb=sTot(o).b;flash=nb?(pb==null?ic("sesiones")+" Primera marca en "+esc(o.circuito)+": "+fmt(nb):nb<pb?ic("llama")+" ¡Nuevo récord en "+esc(o.circuito)+": "+fmt(nb)+"!":ic("ok")+" Sesión guardada"):ic("ok")+" Sesión guardada";if(editing==="new"){o.id=uid();o.deporte=ACT;db.sesiones.push(o)}else{o.id=editing;o.deporte=e.deporte||ACT;db.sesiones[db.sesiones.indexOf(e)]=o}editing=null;save();ses()};return}
+ if(!CIR[ACT]){v.innerHTML='<p class="mu">Cargando…</p>';cargarCir(ses);return}
  var T=SS().sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"")}),G=groups();
  var h=(flash?'<div class="t" style="border-color:var(--ok)"><b>'+flash+'</b></div>':"")+'<div class="row"><button class="btn add" onclick="editing=\'new\';ses();window.scrollTo(0,0)">'+ic("mas")+'Nueva sesión</button></div>'+adSlot("SESIONES");flash="";
  h+=T.length?T.map(function(s){var t=sTot(s),en=s.entradas||[],g=G.filter(function(x){return x.k===nk(s.circuito)})[0],isB=t.b&&g&&g.b===t.b,lm=en.length?en[en.length-1].mejorar:"";
-  return '<div class="t"><h3>'+esc(s.circuito)+' <span class="tag'+(/Carrera|Campeonato/.test(s.tipo)?" c":"")+'">'+esc(s.tipo)+'</span></h3><div class="mu">'+esc(s.fecha)+(s.evento?" · "+esc(s.evento):"")+'</div>'
+  return '<div class="t"><h3>'+esc(s.circuito)+' <span class="tag'+(/Carrera|Campeonato/.test(s.tipo)?" c":"")+'">'+esc(s.tipo)+'</span>'+(CIRP[s.circuitoId]&&CIRP[s.circuitoId].estado==="PROPUESTO"?' <span class="tag" title="Rubus Racing revisará este circuito para sumarlo al catálogo">Circuito en revisión</span>':"")+'</h3><div class="mu">'+esc(s.fecha)+(s.evento?" · "+esc(s.evento):"")+'</div>'
   +'<div>'+en.length+' entrada(s) · '+hm(t.m)+' · '+t.v+' vueltas · Mejor: <span class="'+(isB?"best":"")+'">'+fmt(t.b)+'</span>'+(isB?" (récord en pista)":"")+'</div>'
   +en.map(function(e,i){var mo=db.motos.filter(function(m){return m.id===e.motoId})[0];return '<div class="mu">Entrada '+(i+1)+(e.clima?" · "+esc(e.clima):"")+(e.minutos?" · "+esc(e.minutos)+" min":"")+(e.mejor?" · "+esc(e.mejor):"")+(mo?" · "+esc(mName(mo)):"")+'</div>'}).join("")
   +(lm?'<div class="imp"><b>A mejorar:</b> '+esc(lm)+'</div>':"")
