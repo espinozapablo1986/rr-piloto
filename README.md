@@ -18,6 +18,10 @@ El piloto cambia de plan cuando quiere. El administrador también puede cambiár
 
 Bajar de plan no borra datos: lo que el plan ya no permite editar queda congelado y se conserva.
 
+## Administradores
+
+Se gestionan en `/admin → Administradores`. Pueden tener nombre de usuario, correo o ambos, y entran con cualquiera de los dos. Un administrador no puede eliminarse a sí mismo y siempre debe quedar al menos uno. El administrador inicial se crea desde `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el `.env`.
+
 ## Circuitos
 
 Los pilotos eligen el circuito desde un catálogo que se administra en `/admin → Pistas` (nombre, ubicación, deportes, trazados y longitud). Si falta uno, el piloto lo propone desde la sesión y lo usa de inmediato como provisorio; el administrador lo aprueba (corrigiendo los datos), lo fusiona con uno existente o lo rechaza. Al aprobar o fusionar, todas las sesiones que lo usaban quedan consolidadas con el nombre oficial. Los nombres que se escribieron a mano antes del catálogo aparecen en la misma pestaña para sumarlos o asignarlos.

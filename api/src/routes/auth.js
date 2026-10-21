@@ -66,13 +66,15 @@ authRouter.post('/registro', limiteCredenciales, asyncHandler(async (req, res) =
   res.status(201).json({ user: toPublicUser(usuario) });
 }));
 
-const Login = z.object({ email, password: z.string().min(1).max(200) });
+// «email» acepta el correo o el nombre de usuario (los administradores pueden
+// no tener correo).
+const Login = z.object({ email: z.string().trim().toLowerCase().min(1, 'Indica tu correo o usuario.').max(160), password: z.string().min(1).max(200) });
 
 authRouter.post('/login', limiteCredenciales, asyncHandler(async (req, res) => {
   const d = parse(Login, req.body);
-  const usuario = await prisma.usuario.findUnique({ where: { email: d.email } });
+  const usuario = await prisma.usuario.findFirst({ where: { OR: [{ email: d.email }, { usuario: d.email }] } });
   const ok = await verifyPassword(d.password, usuario?.hash);
-  if (!usuario || !ok) throw unauthorized('Correo o contraseña incorrectos.');
+  if (!usuario || !ok) throw unauthorized('Usuario o contraseña incorrectos.');
   if (usuario.estado === 'RECHAZADO') {
     throw forbidden('Tu solicitud de acceso no fue aprobada. Escríbenos si crees que es un error.');
   }

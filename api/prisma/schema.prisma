@@ -33,7 +33,11 @@ enum TipoContenido {
 
 model Usuario {
   id     String @id @default(cuid())
-  email  String @unique
+  // Los pilotos siempre tienen correo; un administrador puede tener solo
+  // nombre de usuario. Se inicia sesión con cualquiera de los dos.
+  email   String? @unique
+  usuario String? @unique
+  nombre  String?
   hash   String
   rol    Rol    @default(PILOTO)
   estado Estado @default(PENDIENTE)

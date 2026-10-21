@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
-import { asyncHandler, conflict, notFound, parse } from '../lib/http.js';
+import { asyncHandler, badRequest, conflict, notFound, parse } from '../lib/http.js';
 import { DEPORTES, planEfectivo } from '../lib/planes.js';
 import { calcularDashboard } from '../lib/dashboard.js';
 import { clave, conImagenes, circuitoPublico, usoCircuitos, vincular } from '../lib/circuitos.js';
 import { requireAdmin, revokeSessions, toPublicUser } from '../auth/session.js';
+import { hashPassword } from '../auth/password.js';
 
 export const adminRouter = Router();
 adminRouter.use(requireAdmin);
@@ -362,5 +363,73 @@ adminRouter.put('/recompensas/:id', asyncHandler(async (req, res) => {
 
 adminRouter.delete('/recompensas/:id', asyncHandler(async (req, res) => {
   await prisma.recompensa.deleteMany({ where: { id: req.params.id } });
+  res.json({ ok: true });
+}));
+
+/* Administradores: con nombre de usuario, correo o ambos */
+
+const usuarioId = z.string().trim().toLowerCase()
+  .regex(/^[a-z0-9._-]{3,40}$/, 'El usuario debe tener de 3 a 40 caracteres: letras, números, punto, guion o guion bajo.');
+const correo = z.union([z.literal(''), z.string().trim().toLowerCase().email('Correo no válido.').max(160)]);
+const Admin = z.object({
+  usuario: z.union([z.literal(''), usuarioId]).optional().default(''),
+  email: correo.optional().default(''),
+  nombre: z.string().trim().max(120).optional().default(''),
+  password: z.union([z.literal(''), z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.').max(200)]).optional().default(''),
+});
+const pubAdmin = (u) => ({ id: u.id, usuario: u.usuario, email: u.email, nombre: u.nombre, creado: u.creado });
+
+const libre = async (d, id) => {
+  if (!d.usuario && !d.email) throw badRequest('Indica un nombre de usuario o un correo.');
+  const otro = await prisma.usuario.findFirst({
+    where: {
+      OR: [...(d.usuario ? [{ usuario: d.usuario }, { email: d.usuario }] : []), ...(d.email ? [{ email: d.email }, { usuario: d.email }] : [])],
+      ...(id ? { NOT: { id } } : {}),
+    },
+  });
+  if (otro) throw conflict('Ese usuario o correo ya está en uso.');
+};
+
+adminRouter.get('/admins', asyncHandler(async (req, res) => {
+  const us = await prisma.usuario.findMany({ where: { rol: 'ADMIN' }, orderBy: { creado: 'asc' } });
+  res.json({ items: us.map(pubAdmin), yo: req.user.id });
+}));
+
+adminRouter.post('/admins', asyncHandler(async (req, res) => {
+  const d = parse(Admin, req.body);
+  if (!d.password) throw badRequest('Indica una contraseña.');
+  await libre(d);
+  const u = await prisma.usuario.create({
+    data: {
+      usuario: d.usuario || null, email: d.email || null, nombre: d.nombre || null,
+      hash: await hashPassword(d.password), rol: 'ADMIN', estado: 'APROBADO', aprobado: new Date(),
+    },
+  });
+  res.status(201).json({ item: pubAdmin(u) });
+}));
+
+// Contraseña vacía = no se cambia. Si se cambia, se cierran sus sesiones
+// (salvo la del administrador que edita su propia cuenta).
+adminRouter.put('/admins/:id', asyncHandler(async (req, res) => {
+  const d = parse(Admin, req.body);
+  const u0 = await prisma.usuario.findFirst({ where: { id: req.params.id, rol: 'ADMIN' } });
+  if (!u0) throw notFound('Administrador no encontrado.');
+  await libre(d, u0.id);
+  const u = await prisma.usuario.update({
+    where: { id: u0.id },
+    data: {
+      usuario: d.usuario || null, email: d.email || null, nombre: d.nombre || null,
+      ...(d.password ? { hash: await hashPassword(d.password) } : {}),
+    },
+  });
+  if (d.password) await revokeSessions(u.id, u.id === req.user.id ? req.sessionToken : undefined);
+  res.json({ item: pubAdmin(u) });
+}));
+
+adminRouter.delete('/admins/:id', asyncHandler(async (req, res) => {
+  if (req.params.id === req.user.id) throw badRequest('No puedes eliminar tu propia cuenta.');
+  const n = await prisma.usuario.count({ where: { rol: 'ADMIN' } });
+  if (n <= 1) throw badRequest('Debe quedar al menos un administrador.');
+  await prisma.usuario.deleteMany({ where: { id: req.params.id, rol: 'ADMIN' } });
   res.json({ ok: true });
 }));

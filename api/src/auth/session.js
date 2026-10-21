@@ -41,6 +41,8 @@ export const purgeExpiredSessions = () =>
 export const toPublicUser = (u) => ({
   id: u.id,
   email: u.email,
+  usuario: u.usuario,
+  nombre: u.nombre,
   rol: u.rol,
   estado: u.estado,
   plan: u.plan,

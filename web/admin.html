@@ -85,13 +85,13 @@ function fd(d){return d?String(d).slice(0,10):"—"}
 
 function boot(){api("GET","/api/auth/me").then(function(r){ME=r.user;if(ME.rol!=="ADMIN"){$("#v").innerHTML='<div class="auth"><h2>Sin acceso</h2><p class="mu">Tu cuenta no es de administrador.</p><div class="row"><a class="btn s" href="/" style="text-decoration:none">Ir a la app</a><button class="btn s" onclick="salir()">Cerrar sesión</button></div></div>';return}tabs();go(cur)})
  .catch(function(e){if(e.status===401)login();else $("#v").innerHTML='<p class="mu">'+esc(e.message)+'</p>'})}
-function login(){$("#tabs").innerHTML="";$("#v").innerHTML='<div class="auth"><h2>Ingreso de administrador</h2><form id="lf"><fieldset><label>Correo<input type="email" name="email" autocomplete="username" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label><button class="btn" type="submit">Entrar</button><span class="msg" id="lm"></span></fieldset></form></div>';
+function login(){$("#tabs").innerHTML="";$("#v").innerHTML='<div class="auth"><h2>Ingreso de administrador</h2><form id="lf"><fieldset><label>Usuario o correo<input name="email" autocomplete="username" autocapitalize="none" spellcheck="false" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label><button class="btn" type="submit">Entrar</button><span class="msg" id="lm"></span></fieldset></form></div>';
  $("#lf").onsubmit=function(e){e.preventDefault();api("POST","/api/auth/login",read(e.target)).then(boot).catch(function(x){$("#lm").textContent=x.message})}}
 function salir(){api("POST","/api/auth/logout").then(login,login)}
 function tabs(){var p=DB?DB.kpis.pendientes:U.filter(function(u){return u.estado==="PENDIENTE"}).length;
  function b(t,i,l,x){return '<button class="btn s'+(cur===t?" on":"")+'" onclick="go(\''+t+'\')">'+ic(i,16)+l+(x||"")+'</button>'}
- $("#tabs").innerHTML=b("dash","panel","Dashboard")+b("pil","usuarios","Pilotos",p?'<span class="cnt">'+p+'</span>':"")+b("pis","mapa","Pistas",DB&&DB.kpis.circuitosPendientes?'<span class="cnt">'+DB.kpis.circuitosPendientes+'</span>':"")+b("rec","premio","Recompensas")+b("ads","anuncio","Anuncios")+b("mat","material","Material Pro")+'<button class="btn s" onclick="pwd()">'+ic("llave",16)+'Mi contraseña</button><button class="btn s" onclick="salir()">'+ic("salir",16)+'Salir</button>'}
-function go(t){cur=t;if(t==="pil")pilotos();else if(t==="dash")dashboard();else if(t==="ads")anuncios();else if(t==="pis")pistas();else if(t==="rec")recompensas();else material();window.scrollTo(0,0)}
+ $("#tabs").innerHTML=b("dash","panel","Dashboard")+b("pil","usuarios","Pilotos",p?'<span class="cnt">'+p+'</span>':"")+b("pis","mapa","Pistas",DB&&DB.kpis.circuitosPendientes?'<span class="cnt">'+DB.kpis.circuitosPendientes+'</span>':"")+b("rec","premio","Recompensas")+b("ads","anuncio","Anuncios")+b("mat","material","Material Pro")+b("adm","escudo","Administradores")+'<button class="btn s" onclick="pwd()">'+ic("llave",16)+'Mi contraseña</button><button class="btn s" onclick="salir()">'+ic("salir",16)+'Salir</button>'}
+function go(t){cur=t;if(t==="pil")pilotos();else if(t==="dash")dashboard();else if(t==="ads")anuncios();else if(t==="pis")pistas();else if(t==="rec")recompensas();else if(t==="adm")admins();else material();window.scrollTo(0,0)}
 
 /* PILOTOS */
 function pilotos(){api("GET","/api/admin/usuarios").then(function(r){U=r.usuarios;tabs();lista()}).catch(err)}
@@ -230,6 +230,18 @@ function rform(id){var x=RW.filter(function(r){return r.id===id})[0]||{nivel:2,a
  $("#rwf").onsubmit=function(e){e.preventDefault();var o=read(e.target),b={nivel:+o.nivel,titulo:o.titulo,descripcion:o.descripcion,sponsor:o.sponsor,codigo:o.codigo,enlace:o.enlace.trim(),activo:!!o.activo,orden:parseInt(o.orden,10)||0};
   api(id?"PUT":"POST","/api/admin/recompensas"+(id?"/"+id:""),b).then(function(){go("rec")}).catch(function(x){$("#rm2").textContent=x.message+(x.details?" "+x.details.join(" "):"")})}}
 function delR(id){var b=$("#delr");if(pend!==id){pend=id;b.textContent="¿Seguro? Toca de nuevo";return}pend=null;api("DELETE","/api/admin/recompensas/"+id).then(function(){go("rec")}).catch(err)}
+
+/* ADMINISTRADORES: con nombre de usuario, correo o ambos */
+var AD=[],YO="";
+function admins(){api("GET","/api/admin/admins").then(function(r){AD=r.items;YO=r.yo;tabs();
+ var h='<div class="row"><h2 class="ttl" style="margin:0 auto 0 0">'+ic("escudo",22)+'Administradores</h2><button class="btn" onclick="aedit()">'+ic("mas",16)+'Nuevo administrador</button></div><p class="mu">Tienen acceso completo a este panel. Pueden entrar con su nombre de usuario o con su correo, si tienen uno.</p>';
+ h+='<div class="tw"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Correo</th><th>Creado</th></tr></thead><tbody>'+AD.map(function(a){return '<tr class="ck" onclick="aedit(\''+a.id+'\')"><td><b>'+esc(a.nombre||"—")+'</b>'+(a.id===YO?' <span class="tag APROBADO">Tú</span>':"")+'</td><td>'+esc(a.usuario||"—")+'</td><td>'+esc(a.email||"—")+'</td><td>'+fd(a.creado)+'</td></tr>'}).join("")+'</tbody></table></div>';
+ $("#v").innerHTML=h}).catch(err)}
+function aedit(id){var a=AD.filter(function(x){return x.id===id})[0]||{};
+ $("#v").innerHTML='<div class="row"><button class="btn s" onclick="go(\'adm\')">← Volver</button></div><form id="adf" autocomplete="off"><fieldset><legend>'+(id?"Editar":"Nuevo")+' administrador</legend><div class="g"><label>Nombre<input name="nombre" maxlength="120" value="'+esc(a.nombre)+'"></label><label>Nombre de usuario<input name="usuario" maxlength="40" autocapitalize="none" spellcheck="false" placeholder="ej. jperez" value="'+esc(a.usuario)+'"></label><label>Correo (opcional)<input type="email" name="email" maxlength="160" value="'+esc(a.email)+'"></label><label>'+(id?"Nueva contraseña (vacío = no cambiarla)":"Contraseña (mínimo 8 caracteres)")+'<input type="password" name="password" autocomplete="new-password"'+(id?"":" required")+' minlength="8"></label></div>'
+ +'<p class="mu" style="margin:0 0 10px">Indica al menos el usuario o el correo. Al cambiar la contraseña se cierran sus sesiones abiertas.</p><div class="row"><button class="btn" type="submit">Guardar</button>'+(id&&id!==YO?'<button class="btn s" type="button" id="dela2" onclick="delAd(\''+id+'\')">'+ic("basura",16)+'Eliminar</button>':"")+'<span class="msg" id="adm2"></span></div></fieldset></form>';
+ $("#adf").onsubmit=function(e){e.preventDefault();var o=read(e.target);api(id?"PUT":"POST","/api/admin/admins"+(id?"/"+id:""),{nombre:o.nombre,usuario:o.usuario.trim().toLowerCase(),email:o.email.trim(),password:o.password}).then(function(){go("adm")}).catch(function(x){$("#adm2").textContent=x.message+(x.details?" "+x.details.join(" "):"")})}}
+function delAd(id){var b=$("#dela2");if(pend!==id){pend=id;b.textContent="¿Seguro? Toca de nuevo";return}pend=null;api("DELETE","/api/admin/admins/"+id).then(function(){go("adm")}).catch(err)}
 
 /* PUBLICIDAD */
 var LUG=[["INICIO","Inicio"],["SESIONES","Sesiones"],["DATOS","Mis Métricas"]];
