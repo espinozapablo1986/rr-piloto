@@ -49,6 +49,10 @@ premio:'<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13"/><pa
 metricas:'<path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/>',
 cuenta:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3.5"/><path d="M6.2 18.5a7 7 0 0 1 11.6 0"/>',
 lapiz:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+cuatri:'<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M2 13h20"/><path d="M6 13l2-5h8l2 5"/><path d="M10 8V5h4"/>',
+bote:'<path d="M2 18c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 6 0 2-1"/><path d="M4 14 6 9h9l4 5z"/><path d="M10 9V5"/><path d="m10 5 4 2-4 1"/>',
+velocimetro:'<path d="M12 14 16 9"/><path d="M3.3 17a9 9 0 1 1 17.4 0"/><circle cx="12" cy="14" r="1.5"/>',
+camion:'<path d="M2 6h11v10H2z"/><path d="M13 9h4l4 4v3h-8"/><circle cx="6.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/>',
 chev:'<path d="m9 6 6 6-6 6"/>',
 deportes:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'
 };

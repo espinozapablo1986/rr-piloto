@@ -9,6 +9,7 @@ import { loadUser, purgeExpiredSessions } from './auth/session.js';
 import { authRouter } from './routes/auth.js';
 import { pilotoRouter } from './routes/piloto.js';
 import { adminRouter } from './routes/admin.js';
+import { cargarDeportes, deportes } from './lib/deportes.js';
 
 const app = express();
 
@@ -50,6 +51,9 @@ app.get('/api/img/circuito/:id', async (req, res, next) => {
     res.send(Buffer.from(i.datos));
   } catch (e) { next(e); }
 });
+
+// Lista pública de deportes: la necesitan el registro y la app antes de entrar.
+app.get('/api/deportes', (_req, res) => res.json({ deportes: deportes() }));
 
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
@@ -93,6 +97,7 @@ const server = app.listen(env.port, () => {
   console.log(`[rr-piloto-api] escuchando en :${env.port} · origen ${env.appUrl}`);
 });
 
+cargarDeportes().catch((e) => console.error('[rr-piloto-api] no se pudieron cargar los deportes', e));
 crearAdmin().catch((e) => console.error('[rr-piloto-api] no se pudo crear el administrador', e));
 purgeExpiredSessions().catch(() => {});
 setInterval(() => purgeExpiredSessions().catch(() => {}), 6 * 3600 * 1000).unref();

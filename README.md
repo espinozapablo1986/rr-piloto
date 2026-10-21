@@ -1,6 +1,6 @@
 # RR Piloto
 
-Plataforma web para pilotos de Rubus Racing: ficha del piloto y contacto de emergencia, vehículos, registro de sesiones y entradas a pista, estadísticas por circuito, logros, imágenes para compartir en redes y material educativo. Sirve para varios deportes motor (motociclismo de pista, motocross, enduro, supermoto, karting y automovilismo): el piloto elige los suyos y cambia entre ellos desde la pantalla principal. Se puede instalar como app en el teléfono.
+Plataforma web para pilotos de Rubus Racing: ficha del piloto y contacto de emergencia, vehículos, registro de sesiones y entradas a pista, estadísticas por circuito, logros, imágenes para compartir en redes y material educativo. Sirve para varios deportes motor: el piloto elige los suyos y cambia entre ellos desde la pantalla principal. Los deportes (nombre, tipo de vehículo, hashtag, ícono y estado) se administran en `/admin → Deportes`; un deporte en uso no se elimina, se desactiva. Se puede instalar como app en el teléfono.
 
 Desarrollado por Rubus Racing. Todos los derechos reservados.
 

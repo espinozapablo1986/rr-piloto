@@ -276,7 +276,9 @@ var TC=[
 "<p class=\"mu\">Versión 1.1 · octubre de 2026</p>"].join("");
 var TCV="1.1",REG=null,PSEL="GRATIS";
 function hd(on){$("header").style.display=on?"":"none"}
-function boot(){hd(0);$("#v").innerHTML='<p class="mu" style="text-align:center;padding:40px 0">Cargando…</p>';
+// Los deportes vigentes se cargan una vez antes de mostrar cualquier pantalla.
+var DEPOK=0;
+function boot(){if(!DEPOK){DEPOK=1;api("GET","/api/deportes").then(function(r){aplicarDeportes(r.deportes)}).catch(function(){}).then(boot);return}hd(0);$("#v").innerHTML='<p class="mu" style="text-align:center;padding:40px 0">Cargando…</p>';
  api("GET","/api/auth/me").then(function(r){ME=r.user;
   if(ME.rol==="ADMIN"){location.href="/admin";return}
   if(ME.estado!=="APROBADO"){gate("espera");return}
@@ -309,7 +311,7 @@ function acepto(){var m=$("#ckm").checked,tn=$("#tn").value.trim(),tr=$("#tr").v
  REG={terminos:true,salud:true,mailing:$("#ck3").checked,menor:m,tutor:tn,tutorRut:tr,version:TCV};
  if(ME){$("#tm").textContent="Guardando…";api("PUT","/api/cuenta/consentimiento",REG).then(function(r){ME=r.user;REG=null;boot()}).catch(function(e){$("#tm").textContent=e.message});return}
  gate("registro")}
-function depChk(sel){return '<div class="chk">'+DEPORTES.map(function(d){return '<label><input type="checkbox" data-dep="'+d[0]+'"'+(sel.indexOf(d[0])>=0?" checked":"")+'>'+ic(d[4],18)+esc(d[1])+'</label>'}).join("")+'</div>'}
+function depChk(sel){return '<div class="chk">'+depElegibles(sel).map(function(d){return '<label><input type="checkbox" data-dep="'+d[0]+'"'+(sel.indexOf(d[0])>=0?" checked":"")+'>'+ic(d[4],18)+esc(d[1])+'</label>'}).join("")+'</div>'}
 function depSel(root){return [].slice.call(root.querySelectorAll("[data-dep]:checked")).map(function(i){return i.dataset.dep})}
 function pickPlan(p){PSEL=p;$("#rp").innerHTML=planCards(PSEL,"pickPlan")}
 function wipe(){var b=$("#wipe");if(pend==="w"){pend=null;b.textContent="Borrando…";api("DELETE","/api/cuenta").then(function(){try{localStorage.removeItem(KEY)}catch(e){}ME=null;db=mig({});VER=0;cur="inicio";gate("portada");toast("Tu cuenta y tus datos fueron eliminados.")}).catch(function(e){b.textContent="Borrar mi cuenta y mis datos";toast(e.message)})}else{pend="w";b.textContent="¿Seguro? Se borra tu cuenta y todo. Toca de nuevo"}}

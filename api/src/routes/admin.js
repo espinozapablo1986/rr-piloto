@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import crypto from 'node:crypto';
 import { asyncHandler, badRequest, conflict, notFound, parse } from '../lib/http.js';
-import { DEPORTES, planEfectivo } from '../lib/planes.js';
+import { planEfectivo } from '../lib/planes.js';
+import { DEPORTES_DEF, ICONOS_DEP, VEHICULOS, deporteId, deportes, esDeporte, guardarDeportes, usoDeportes } from '../lib/deportes.js';
 import { calcularDashboard } from '../lib/dashboard.js';
 import { guardarPremios, leerPremios } from '../lib/logros.js';
 import { clave, conImagenes, circuitoPublico, usoCircuitos, vincular, vincularLote } from '../lib/circuitos.js';
@@ -64,7 +65,7 @@ const Cambio = z.object({
   cortesia: plan.nullable().optional(),
   cortesiaHasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha no válida.').nullable().optional(),
   email: z.string().trim().toLowerCase().email('Correo no válido.').max(160).optional(),
-  deportes: z.array(z.enum(DEPORTES)).min(1, 'Elige al menos un deporte.').optional(),
+  deportes: z.array(deporteId).min(1, 'Elige al menos un deporte.').optional(),
 });
 
 adminRouter.patch('/usuarios/:id', asyncHandler(async (req, res) => {
@@ -99,7 +100,7 @@ const NuevoPiloto = z.object({
   nombre: z.string().trim().min(2, 'Indica el nombre.').max(120),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.').max(200),
   plan: plan.optional().default('GRATIS'),
-  deportes: z.array(z.enum(DEPORTES)).min(1, 'Elige al menos un deporte.'),
+  deportes: z.array(deporteId).min(1, 'Elige al menos un deporte.'),
 });
 
 adminRouter.post('/usuarios', asyncHandler(async (req, res) => {
@@ -127,7 +128,7 @@ const FilaPiloto = z.object({
   nombre: z.string().trim().max(120).optional().default(''),
   password: z.union([z.literal(''), z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.').max(200)]).optional().default(''),
   plan: z.union([z.literal(''), plan]).optional().default(''),
-  deportes: z.array(z.enum(DEPORTES)).optional().default([]),
+  deportes: z.array(deporteId).optional().default([]),
   telefono: z.string().trim().max(60).optional().default(''),
   rut: z.string().trim().max(20).optional().default(''),
 });
@@ -223,7 +224,7 @@ adminRouter.put('/usuarios/:id/sesiones/:sid', asyncHandler(async (req, res) => 
   if (i < 0) throw notFound('Sesión no encontrada.');
   const s = limpiarSesion({ ...sesion, id: req.params.sid });
   if (!clave(s.circuito)) throw badRequest('Falta el circuito.');
-  if (s.deporte && !DEPORTES.includes(s.deporte)) throw badRequest('Deporte no válido.');
+  if (s.deporte && !esDeporte(s.deporte)) throw badRequest('Deporte no válido.');
   const c = await prisma.circuito.findFirst({ where: { clave: clave(s.circuito), estado: 'APROBADO' } });
   if (c) { s.circuitoId = c.id; s.circuito = c.nombre; } else delete s.circuitoId;
   ses[i] = s;
@@ -295,7 +296,7 @@ adminRouter.delete('/contenido/:id', asyncHandler(async (req, res) => {
 /* Dashboard */
 
 adminRouter.get('/dashboard', asyncHandler(async (req, res) => {
-  const deporte = DEPORTES.includes(req.query.deporte) ? req.query.deporte : '';
+  const deporte = esDeporte(req.query.deporte) ? req.query.deporte : '';
   const dias = [30, 90, 180, 365].includes(+req.query.dias) ? +req.query.dias : 0;
   res.json(await calcularDashboard({ deporte, dias }));
 }));
@@ -313,7 +314,7 @@ const Anuncio = z.object({
   enlace: z.union([z.literal(''), z.string().trim().max(500)
     .regex(/^https?:\/\/[^\s]+$/i, 'El enlace debe ser una URL completa (https://…).')]).optional().default(''),
   lugares: z.array(z.enum(['INICIO', 'SESIONES', 'DATOS'])).min(1, 'Elige al menos un lugar.'),
-  deportes: z.array(z.enum(DEPORTES)).optional().default([]),
+  deportes: z.array(deporteId).optional().default([]),
   desde: fecha.nullable().optional().default(null),
   hasta: fecha.nullable().optional().default(null),
   activo: z.boolean().optional().default(true),
@@ -352,7 +353,7 @@ const Circuito = z.object({
   ciudad: z.string().trim().max(120).optional().default(''),
   region: z.string().trim().max(120).optional().default(''),
   pais: z.string().trim().max(60).optional().default('Chile'),
-  deportes: z.array(z.enum(DEPORTES)).optional().default([]),
+  deportes: z.array(deporteId).optional().default([]),
   trazados: z.array(z.string().trim().min(1).max(60)).max(20).optional().default([]),
   longitud: z.number().int().min(0).max(100000).nullable().optional().default(null),
   // Nombres escritos a mano por los pilotos que se consolidan en este circuito.
@@ -682,4 +683,61 @@ adminRouter.delete('/admins/:id', asyncHandler(async (req, res) => {
   if (n <= 1) throw badRequest('Debe quedar al menos un administrador.');
   await prisma.usuario.deleteMany({ where: { id: req.params.id, rol: 'ADMIN' } });
   res.json({ ok: true });
+}));
+
+/* Deportes: nombre, tipo de vehículo, hashtag, ícono y estado */
+
+const Deporte = z.object({
+  id: z.string().trim().max(40).optional().default(''),
+  nombre: z.string().trim().min(2, 'Cada deporte necesita un nombre.').max(60),
+  vehiculo: z.enum(VEHICULOS, { message: 'Tipo de vehículo no válido.' }),
+  hashtag: z.string().trim().transform((v) => v.replace(/^#/, ''))
+    .pipe(z.string().regex(/^[\p{L}\p{N}_]{0,40}$/u, 'El hashtag solo admite letras, números y guion bajo.')).optional().default(''),
+  icono: z.enum(ICONOS_DEP, { message: 'Ícono no válido.' }),
+  activo: z.boolean().optional().default(true),
+});
+const Deportes = z.object({ deportes: z.array(Deporte).min(1).max(50) });
+const slug = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'deporte';
+
+adminRouter.get('/deportes', asyncHandler(async (_req, res) => {
+  res.json({ deportes: deportes(), uso: await usoDeportes(), iconos: ICONOS_DEP });
+}));
+
+// Guarda la lista completa en el orden recibido. Un deporte en uso no se
+// puede eliminar: se desactiva (deja de ofrecerse, pero sus datos siguen).
+adminRouter.put('/deportes', asyncHandler(async (req, res) => {
+  const d = parse(Deportes, req.body).deportes;
+  const antes = deportes();
+  const ids = new Set();
+  const lista = d.map((x) => {
+    let id = antes.some((a) => a.id === x.id) ? x.id : '';
+    if (!id) {
+      const base = slug(x.nombre);
+      id = base;
+      for (let i = 2; ids.has(id) || antes.some((a) => a.id === id); i += 1) id = `${base}-${i}`;
+    }
+    if (ids.has(id)) throw badRequest(`«${x.nombre}» está repetido.`);
+    ids.add(id);
+    return { ...x, id, hashtag: x.hashtag || x.nombre.replace(/[^\p{L}\p{N}]+/gu, '') };
+  });
+  if (new Set(lista.map((x) => x.nombre.toLowerCase())).size !== lista.length) throw badRequest('Dos deportes no pueden tener el mismo nombre.');
+  if (!lista.some((x) => x.activo)) throw badRequest('Debe quedar al menos un deporte activo.');
+  const quitados = antes.filter((a) => !ids.has(a.id));
+  if (quitados.length) {
+    const uso = await usoDeportes();
+    const ocupado = quitados.find((q) => uso[q.id]);
+    if (ocupado) {
+      const u = uso[ocupado.id];
+      throw conflict(`«${ocupado.nombre}» está en uso (${u.pilotos} pilotos, ${u.sesiones} sesiones, ${u.circuitos} circuitos, ${u.anuncios} anuncios). Desactívalo en lugar de eliminarlo.`);
+    }
+  }
+  res.json({ deportes: await guardarDeportes(lista), uso: await usoDeportes(), iconos: ICONOS_DEP });
+}));
+
+// Vuelve a la lista original (solo si no se pierde ninguno en uso).
+adminRouter.post('/deportes/restablecer', asyncHandler(async (_req, res) => {
+  const uso = await usoDeportes();
+  const faltan = deportes().filter((d) => !DEPORTES_DEF.some((x) => x.id === d.id) && uso[d.id]);
+  if (faltan.length) throw conflict(`«${faltan[0].nombre}» está en uso y no forma parte de la lista original.`);
+  res.json({ deportes: await guardarDeportes(DEPORTES_DEF), uso, iconos: ICONOS_DEP });
 }));

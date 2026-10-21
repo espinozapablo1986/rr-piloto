@@ -20,12 +20,16 @@ var NA_TXT="No aplica";
 var NA=["isapre","seguro","clinica","emTel2","alergias","enfermedades","medicamentos","antecedentes","licencia","categoria","nCarrera","equipo"];
 // Campos que no se piden según otra respuesta: con Fonasa no hay Isapre.
 var OCULTO={isapre:function(d){return d.prevision==="Fonasa"||d.prevision==="Sin previsión"}};
-// Deportes motor: id, nombre, tipo de vehículo (moto, kart o auto), hashtag e
-// ícono propio (iconos.js).
+// Deportes motor: id, nombre, tipo de vehículo (moto, kart, auto u otro),
+// hashtag, ícono (iconos.js) y si está activo. Esta es la lista por defecto: la
+// vigente la define el panel y llega desde GET /api/deportes.
 // Las sesiones y los vehículos llevan el deporte; lo anterior a esto es "moto".
 var DEPORTES=[["moto","Motociclismo de pista","moto","Motociclismo","moto"],["mx","Motocross","moto","Motocross","mx"],["enduro","Enduro","moto","Enduro","enduro"],["supermoto","Supermoto","moto","Supermoto","casco"],["karting","Karting","kart","Karting","kart"],["auto","Automovilismo","auto","Automovilismo","auto"]];
-function dep(id){return DEPORTES.filter(function(d){return d[0]===id})[0]||DEPORTES[0]}
-var VEH={moto:"Moto",kart:"Kart",auto:"Auto"};
+function dep(id){return DEPORTES.filter(function(d){return d[0]===id})[0]||[id,id||"Deporte","otro",id,"sesiones",false]}
+var VEH={moto:"Moto",kart:"Kart",auto:"Auto",otro:"Vehículo"};
+function aplicarDeportes(L){if(Array.isArray(L)&&L.length)DEPORTES=L.map(function(d){return [d.id,d.nombre,d.vehiculo,d.hashtag,d.icono,d.activo!==false]})}
+// Para elegir: los activos, más los que ya tenga marcados la persona.
+function depElegibles(sel){return DEPORTES.filter(function(d){return d[5]!==false||(sel||[]).indexOf(d[0])>=0})}
 // Medallas, copas y niveles. Debe coincidir con api/src/lib/logros.js:
 // 1 punto por minuto en pista y 30 por cada récord personal roto.
 var PREMIOS={puntosRecord:30,

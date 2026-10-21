@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { asyncHandler, badRequest, conflict, forbidden, parse } from '../lib/http.js';
 import { fichaVacia, sanear } from '../lib/ficha.js';
-import { DEPORTES, nivel, veAnuncios } from '../lib/planes.js';
+import { nivel, veAnuncios } from '../lib/planes.js';
+import { deporteId, esDeporte } from '../lib/deportes.js';
 import { circuitoPublico, clave, conImagenes } from '../lib/circuitos.js';
 import { leerPremios, progreso } from '../lib/logros.js';
 import { COOKIE_NAME, cookieOptions, requireAprobado, toPublicUser } from '../auth/session.js';
@@ -94,7 +95,7 @@ pilotoRouter.delete('/cuenta', asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
-const Deportes = z.object({ deportes: z.array(z.enum(DEPORTES)).min(1, 'Elige al menos un deporte.').max(DEPORTES.length) });
+const Deportes = z.object({ deportes: z.array(deporteId).min(1, 'Elige al menos un deporte.').max(50) });
 
 pilotoRouter.put('/cuenta/deportes', asyncHandler(async (req, res) => {
   const { deportes } = parse(Deportes, req.body);
@@ -150,7 +151,7 @@ pilotoRouter.post('/anuncios/:id/clic', asyncHandler(async (req, res) => {
 /* Circuitos: catálogo aprobado más las propuestas propias en revisión */
 
 pilotoRouter.get('/circuitos', asyncHandler(async (req, res) => {
-  const deporte = DEPORTES.includes(req.query.deporte) ? req.query.deporte : '';
+  const deporte = esDeporte(req.query.deporte) ? req.query.deporte : '';
   const lista = await prisma.circuito.findMany({
     where: {
       AND: [
@@ -171,7 +172,7 @@ const Propuesta = z.object({
   pais: z.string().trim().max(60).optional().default('Chile'),
   trazados: z.array(z.string().trim().min(1).max(60)).max(10).optional().default([]),
   nota: z.string().trim().max(500).optional().default(''),
-  deporte: z.enum(DEPORTES),
+  deporte: deporteId,
 });
 
 // El circuito propuesto se puede usar de inmediato en las sesiones del piloto;

@@ -5,7 +5,7 @@ import { prisma } from '../lib/db.js';
 import { asyncHandler, badRequest, conflict, forbidden, parse, unauthorized } from '../lib/http.js';
 import { rateLimit } from '../lib/rateLimit.js';
 import { fichaVacia } from '../lib/ficha.js';
-import { DEPORTES } from '../lib/planes.js';
+import { deporteId } from '../lib/deportes.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import {
   COOKIE_NAME, cookieOptions, createSession, destroySession, requireAuth, revokeSessions, toPublicUser,
@@ -27,7 +27,7 @@ const Registro = z.object({
   password: clave,
   nombre: z.string().trim().min(2, 'Indica tu nombre.').max(120),
   plan: z.enum(['GRATIS', 'PLUS', 'PRO']),
-  deportes: z.array(z.enum(DEPORTES)).min(1, 'Elige al menos un deporte.').max(DEPORTES.length),
+  deportes: z.array(deporteId).min(1, 'Elige al menos un deporte.').max(50),
   consentimiento: z.object({
     terminos: z.literal(true, { message: 'Debes aceptar los términos.' }),
     salud: z.literal(true, { message: 'Debes autorizar el uso de los datos de emergencia.' }),
