@@ -46,6 +46,7 @@ copa:'<path d="M7 3h10v6a5 5 0 0 1-10 0z"/><path d="M17 4.5h2.5a2 2 0 0 1 0 4H17
 premio:'<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13"/><path d="M3 13h18"/><path d="M12 8 9 3.5a2 2 0 0 0-3 2.5L8 8"/><path d="m12 8 3-4.5a2 2 0 0 1 3 2.5L16 8"/>',
 metricas:'<path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/>',
 cuenta:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3.5"/><path d="M6.2 18.5a7 7 0 0 1 11.6 0"/>',
+chev:'<path d="m9 6 6 6-6 6"/>',
 deportes:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'
 };
 function ic(n,s){return '<svg class="ic" viewBox="0 0 24 24" width="'+(s||18)+'" height="'+(s||18)+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO[n]||"")+'</svg>'}
