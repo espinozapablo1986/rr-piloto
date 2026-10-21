@@ -28,6 +28,13 @@ const plano = (o, keep = []) => {
 const imagen = (s) => (typeof s === 'string' && s.startsWith('data:image/') && s.length <= MAX_IMG ? s : '');
 const nk = (c) => String(c || '').trim().toLowerCase();
 
+// La foto de la moto es la única imagen dentro de una moto; el resto son textos.
+const moto = (m) => {
+  const r = plano(m, ['foto']);
+  const foto = imagen(m?.foto);
+  return foto ? { ...r, foto } : r;
+};
+
 const sesion = (s) => {
   const base = plano(s, ['entradas']);
   if (!base.id) throw badRequest('Cada sesión necesita un identificador.');
@@ -52,7 +59,7 @@ export const sanear = (entrante, guardada, nivel) => {
 
   const datos = {
     perfil: plano(entrante.perfil),
-    motos: Array.isArray(entrante.motos) ? entrante.motos.slice(0, 30).map((m) => plano(m)) : [],
+    motos: Array.isArray(entrante.motos) ? entrante.motos.slice(0, 30).map(moto) : [],
     sesiones: Array.isArray(entrante.sesiones) ? entrante.sesiones.slice(0, 2000).map(sesion) : [],
     pistas: {},
     foto: imagen(entrante.foto),

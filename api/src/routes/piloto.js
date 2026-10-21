@@ -76,7 +76,7 @@ pilotoRouter.get('/contenido', asyncHandler(async (req, res) => {
   const items = await prisma.contenido.findMany({
     where: { publicado: true },
     orderBy: [{ orden: 'asc' }, { creado: 'desc' }],
-    select: { id: true, tipo: true, titulo: true, resumen: true, cuerpo: true, enlace: true },
+    select: { id: true, tipo: true, titulo: true, categoria: true, resumen: true, cuerpo: true, enlace: true },
   });
   res.json({ items });
 }));

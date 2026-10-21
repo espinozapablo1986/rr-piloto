@@ -2,7 +2,7 @@
 // administración, para que ambos muestren las mismas etiquetas.
 var PERFIL=[
 ["Datos personales",[["nombre","Nombre completo"],["rut","RUT"],["nac","Fecha de nacimiento","date"],["direccion","Dirección"],["comuna","Comuna / ciudad"],["telefono","Teléfono","tel"],["correo","Correo electrónico","email"]]],
-["Previsión y seguro",[["prevision","Previsión",["","Fonasa","Isapre","Otra"]],["isapre","Isapre / detalle"],["seguro","Seguro de accidentes (compañía y n.° póliza)"],["clinica","Centro de salud preferido"]]],
+["Previsión y seguro",[["prevision","Previsión",["","Fonasa","Isapre","Otra","Sin previsión"]],["isapre","Isapre / detalle"],["seguro","Seguro de accidentes (compañía y n.° póliza)"],["clinica","Centro de salud preferido"]]],
 ["En caso de emergencia llamar a",[["emNombre","Nombre"],["emParentesco","Parentesco"],["emTel","Teléfono","tel"],["emTel2","Teléfono alternativo","tel"]]],
 ["Información médica",[["sangre","Grupo sanguíneo",["","O+","O-","A+","A-","B+","B-","AB+","AB-"]],["alergias","Alergias","textarea"],["enfermedades","Enfermedades o condiciones","textarea"],["medicamentos","Medicamentos de uso habitual","textarea"],["antecedentes","Antecedentes médicos importantes (lesiones, cirugías, etc.)","textarea"]]],
 ["Competencia",[["licencia","N.° de licencia"],["categoria","Categoría"],["nCarrera","N.° de carrera"],["equipo","Equipo / club"],["experiencia","Años de experiencia"]]]
@@ -14,4 +14,10 @@ var MOTO=[
 ["Neumáticos y frenos",[["neumatico","Marca y compuesto de neumáticos"],["presionD","Presión delantera fría (psi)","number"],["presionT","Presión trasera fría (psi)","number"],["frenos","Pastillas y discos"]]],
 ["Notas",[["notas","Otras características mecánicas","textarea"]]]
 ];
+// Campos que pueden marcarse como «No aplica» (por ejemplo, quien no tiene
+// seguro de accidentes o no compite).
+var NA_TXT="No aplica";
+var NA=["isapre","seguro","clinica","emTel2","alergias","enfermedades","medicamentos","antecedentes","licencia","categoria","nCarrera","equipo"];
+// Campos que no se piden según otra respuesta: con Fonasa no hay Isapre.
+var OCULTO={isapre:function(d){return d.prevision==="Fonasa"||d.prevision==="Sin previsión"}};
 var TIPOS=["Práctica","Entrenamiento","Clase","Clasificación","Carrera","Campeonato","Exhibición"];

@@ -84,6 +84,8 @@ model Contenido {
   id          String        @id @default(cuid())
   tipo        TipoContenido @default(MATERIAL)
   titulo      String
+  // Agrupa el material en la app (por ejemplo «Técnica de manejo»).
+  categoria   String?
   resumen     String?
   cuerpo      String?       @db.Text
   enlace      String?

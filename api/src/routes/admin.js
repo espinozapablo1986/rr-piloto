@@ -88,6 +88,7 @@ adminRouter.delete('/usuarios/:id', asyncHandler(async (req, res) => {
 const Contenido = z.object({
   tipo: z.enum(['MATERIAL', 'BENEFICIO']),
   titulo: z.string().trim().min(1, 'Falta el título.').max(200),
+  categoria: z.string().trim().max(80).optional().default(''),
   resumen: z.string().trim().max(500).optional().default(''),
   cuerpo: z.string().max(20000).optional().default(''),
   // Solo http(s): el enlace se muestra como botón a los pilotos.
